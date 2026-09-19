@@ -691,9 +691,10 @@
   <div class="modal">
     <h3>💾 保存当前编制</h3>
     <input type="text" class="modal-input" id="save-name-input" placeholder="输入存档名称..." maxlength="40">
-    <div class="modal-actions">
+    <div class="modal-actions" style="flex-wrap: wrap; gap: 8px;">
       <button id="save-cancel">取消</button>
-      <button id="save-confirm" class="primary">保存</button>
+      <button id="save-confirm" class="primary">保存到浏览器</button>
+      <button id="save-file-btn" class="primary" style="background:#7c3aed; border-color:#7c3aed;">💾 保存到文件</button>
     </div>
   </div>
 </div>
@@ -704,9 +705,11 @@
     <div class="modal-list" id="load-list"></div>
     <div class="modal-actions">
       <button id="load-cancel">关闭</button>
+      <button id="load-file-btn" class="primary">📂 从文件导入</button>
     </div>
   </div>
 </div>
+<input type="file" id="file-input" accept=".json" style="display:none;">
 
 <div class="modal-mask" id="preset-modal">
   <div class="modal" style="min-width:480px;">
@@ -873,6 +876,8 @@ const CHANGELOG = [
     changes: [
       '新增：移动端适配',
       '新增：电脑端拖动平移缩放浏览功能',
+      '新增：保存文件到本地防止存档丢失',
+      '新增：有更新时进入网站时弹出的更新日志窗口',
       '优化：增加了画布大小',
       '修复：粘贴兵牌后名称显示为“副本”',
       '修复：库中的兵牌在暗黑风格中仍显示为白天风格',
@@ -2624,6 +2629,58 @@ function refreshLoadList() {
   });
 }
 
+/* ---- 导出到本地文件 ---- */
+document.getElementById('save-file-btn').addEventListener('click', () => {
+  const name = saveNameInput.value.trim() || root.name || '军队编制';
+  const data = serializeOrg(root);
+  const str = JSON.stringify(data, null, 2);
+  const blob = new Blob([str], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  saveModal.classList.remove('show');
+  toast('已导出文件：' + name + '.json');
+});
+
+/* ---- 从本地文件导入 ---- */
+document.getElementById('load-file-btn').addEventListener('click', () => {
+  document.getElementById('file-input').click();
+});
+
+document.getElementById('file-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!data || !data.type || !data.echelon) throw new Error('文件格式不正确，缺少必要字段');
+
+      pushHistory();
+      root = deserializeOrg(data);
+      uid = 0;
+      forEachNode(root, n => {
+        const num = parseInt(n.id.slice(1), 10);
+        if (num > uid) uid = num;
+      });
+      selectedId = null;
+      render(); emptyPanel(); renderStats();
+      loadModal.classList.remove('show');
+      toast('已导入文件：' + file.name);
+    } catch (err) {
+      alert('导入失败：' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = ''; // 允许重复导入同一个文件
+});
+
 function toast(msg, isErr) {
   const t = document.createElement('div');
   t.textContent = msg;
@@ -2697,6 +2754,20 @@ document.querySelectorAll('#preset-modal .preset-item').forEach(item => {
 const changelogModal = document.getElementById('changelog-modal');
 document.getElementById('btn-changelog').addEventListener('click', () => changelogModal.classList.add('show'));
 document.getElementById('changelog-close').addEventListener('click', () => changelogModal.classList.remove('show'));
+
+/* ---- 版本更新提示 ---- */
+const VERSION_SEEN_KEY = 'mil_last_seen_version_v1';
+
+function checkVersionUpdate() {
+  let seen = null;
+  try { seen = localStorage.getItem(VERSION_SEEN_KEY); } catch (e) {}
+
+  if (seen === VERSION) return;                 // 当前版本已看过
+  try { localStorage.setItem(VERSION_SEEN_KEY, VERSION); } catch (e) {}
+
+  if (!seen) return;                            // 首次访问，不弹（欢迎弹窗已处理）
+  changelogModal.classList.add('show');         // 老用户遇到版本更新，自动弹日志
+}
 
 /* =========================================================
    顶栏操作
@@ -3051,6 +3122,9 @@ document.getElementById('btn-undo').addEventListener('click', undo);
     refreshWelcomePresetSel();
     welcomeModal.classList.add('show');
   }
+
+  /* 延迟一点检查版本，避免跟欢迎弹窗抢焦点 */
+  setTimeout(checkVersionUpdate, 800);
 })();
 
 /* 缩放按钮 */
