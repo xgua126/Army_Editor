@@ -1,0 +1,2121 @@
+<!--
+  ⚔ 军队编制编辑器
+  作者：BiliBili@勘茶Kchs_ 与 DeepSeek 联合创作
+  本工具完全免费，仅供娱乐。若您通过付费渠道获得，请注意可能已上当受骗。
+  请勿移除本署名后二次分发或收费。
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>军队编制编辑器</title>
+<meta name="author" content="BiliBili@勘茶Kchs_">
+<meta name="copyright" content="本网页由 BiliBili@勘茶Kchs_ 与 DeepSeek 联合创作，禁止移除署名后二次分发或收费">
+<meta name="description" content="军队编制编辑器 · 免费开源的娱乐性工具">
+<style>
+  * { box-sizing: border-box; }
+  :root {
+    --bg:#f5f7fa; --canvas-bg:#f8fafc; --dot-pattern:#d7dee8;
+    --panel-bg:#fff; --fg:#1e293b; --fg-muted:#64748b; --fg-dim:#94a3b8;
+    --border:#e2e8f0; --input-bg:#fff; --input-border:#cbd5e1;
+    --accent:#2563eb; --accent-hover:#1d4ed8;
+    --link-color:#9db4d4; --header-bg:linear-gradient(180deg,#1e293b,#16202f);
+    --shadow:rgba(0,0,0,.15); --node-hover:rgba(37,99,235,.08);
+    --node-selected:rgba(37,99,235,.13); --legend-bg:#eef2f7;
+    --empty-bg:#f8fafc; --stats-bg:#f8fafc;
+    --stats-highlight-bg:#eff6ff; --stats-highlight-border:#bfdbfe;
+    --equip-bg:#f8fafc;
+  }
+  body.dark {
+    --bg:#0f172a; --canvas-bg:#0b1220; --dot-pattern:#1e293b;
+    --panel-bg:#1e293b; --fg:#e2e8f0; --fg-muted:#94a3b8; --fg-dim:#64748b;
+    --border:#334155; --input-bg:#0f172a; --input-border:#475569;
+    --accent:#3b82f6; --accent-hover:#60a5fa;
+    --link-color:#475569; --header-bg:linear-gradient(180deg,#020617,#0f172a);
+    --shadow:rgba(0,0,0,.5); --node-hover:rgba(59,130,246,.15);
+    --node-selected:rgba(59,130,246,.28); --legend-bg:#334155;
+    --empty-bg:#0f172a; --stats-bg:#0f172a;
+    --stats-highlight-bg:#1e3a5f; --stats-highlight-border:#1e40af;
+    --equip-bg:#0f172a;
+  }
+  html, body { margin:0; height:100%; font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg); color:var(--fg); overflow:hidden; transition:background .25s,color .25s; }
+  body { display:flex; flex-direction:column; }
+  header { height:56px; flex:none; display:flex; align-items:center; gap:8px;
+    padding:0 16px; background:var(--header-bg); color:#fff;
+    box-shadow:0 2px 8px var(--shadow); z-index:10; }
+  header h1 { font-size:15px; font-weight:600; margin:0 8px 0 0; letter-spacing:.5px; }
+  header h1 .version { font-size:11px; color:#94a3b8; font-weight:400; margin-left:6px; letter-spacing:0; }
+  header .spacer { flex:1; }
+  header button { font:inherit; font-size:13px; padding:7px 12px; border-radius:6px;
+    border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.08);
+    color:#e2e8f0; cursor:pointer; transition:.15s; white-space:nowrap; }
+  header button:hover { background:rgba(255,255,255,.18); }
+  header button.primary { background:#2563eb; border-color:#2563eb; color:#fff; }
+  header button.primary:hover { background:#1d4ed8; }
+  header button.green { background:#16a34a; border-color:#16a34a; color:#fff; }
+  header button.green:hover { background:#15803d; }
+  header .hint { font-size:12px; color:#94a3b8; }
+
+  #main { flex:1; display:flex; min-height:0; }
+  #wrap { flex:1; position:relative; overflow:auto;
+    background:radial-gradient(circle at 1px 1px,var(--dot-pattern) 1px,transparent 0) 0 0/22px 22px,
+      var(--canvas-bg); transition:background .25s; }
+    #wrap::before {
+    content: 'BiliBili@勘茶Kchs_ 免费提供';
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) rotate(-22deg);
+    font-size: 44px;
+    font-weight: 900;
+    letter-spacing: 6px;
+    color: rgba(37, 99, 235, 0.055);
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 0;
+    user-select: none;
+  }
+  body.dark #wrap::before {
+    color: rgba(96, 165, 250, 0.07);
+  }
+  #canvas { position:relative; }
+  #links { position:absolute; top:0; left:0; pointer-events:none; overflow:visible; }
+  #nodes { position:absolute; top:0; left:0; }
+
+  .node { position:absolute; width:120px; height:116px;
+    display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+    padding-bottom:6px; gap:5px; border-radius:9px; cursor:grab;
+    user-select:none; touch-action:none; transition:background .15s, box-shadow .15s; }
+  .node:hover { background:var(--node-hover); }
+  .node.selected { background:var(--node-selected); box-shadow:0 0 0 2px var(--accent); }
+  .node.dragging { opacity:.3; }
+  .node .sym { display:flex; pointer-events:none; }
+  .node .sym svg { display:block; }
+  .node .label { font-size:12px; line-height:1.25; text-align:center;
+    color:var(--fg); font-weight:500; width:112px; max-height:30px; overflow:hidden;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; pointer-events:none; }
+  .node .collapse-btn { position:absolute; top:2px; right:2px;
+    width:18px; height:18px; border-radius:50%; background:var(--accent); color:#fff;
+    font-size:13px; font-weight:700; line-height:18px; text-align:center;
+    cursor:pointer; z-index:3; user-select:none; box-shadow:0 1px 4px rgba(0,0,0,.2);
+    transition:background .15s, transform .1s; pointer-events:auto; }
+  .node .collapse-btn:hover { background:var(--accent-hover); transform:scale(1.1); }
+  .node .collapse-btn.collapsed { background:#d97706; }
+  .node .collapse-btn.collapsed:hover { background:#b45309; }
+  .node .badge { position:absolute; top:2px; left:2px;
+    height:18px; padding:0 7px; background:rgba(10,61,145,.92); color:#fff;
+    border-radius:9px; font-size:10px; line-height:18px; font-weight:600;
+    box-shadow:0 1px 4px rgba(0,0,0,.25); pointer-events:none; white-space:nowrap; }
+  .node .remark-icon { position:absolute; bottom:2px; right:4px; font-size:12px;
+    cursor:help; pointer-events:auto; line-height:1;
+    filter:drop-shadow(0 1px 1px rgba(0,0,0,.2)); }
+  .node.ghost { position:fixed; pointer-events:none; z-index:9999; opacity:.92;
+    background:var(--panel-bg); border-radius:9px;
+    box-shadow:0 10px 28px rgba(15,23,42,.28); transform:scale(.95); }
+  .node.drop-child { outline:3px dashed #16a34a; outline-offset:3px; background:rgba(22,163,74,.1); }
+  .node.drop-before::before, .node.drop-after::after {
+    content:''; position:absolute; left:2px; right:2px; height:4px;
+    background:#16a34a; border-radius:2px; }
+  .node.drop-before::before { top:-10px; }
+  .node.drop-after::after  { bottom:-10px; }
+
+  aside { flex:none; background:var(--panel-bg); overflow-y:auto; transition:background .25s; }
+  aside.lib { width:222px; border-right:1px solid var(--border); padding:14px 12px; position:relative; }
+  aside.lib.drag-over-delete { background:rgba(220,38,38,.12); box-shadow:inset 0 0 0 3px #dc2626; }
+  aside.lib.drag-over-delete::after {
+    content:'🗑 松开删除该单位'; position:absolute; top:50%; left:50%;
+    transform:translate(-50%,-50%); padding:8px 16px; border-radius:8px;
+    background:#dc2626; color:#fff; font-size:13px; font-weight:600;
+    box-shadow:0 4px 12px rgba(0,0,0,.3); pointer-events:none; z-index:10; }
+  aside.props { width:340px; border-left:1px solid var(--border); padding:18px; }
+  aside h2 { font-size:13px; text-transform:uppercase; letter-spacing:.8px;
+    color:var(--fg-muted); margin:0 0 12px; font-weight:600; }
+
+  .lib-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .lib-item { display:flex; flex-direction:column; align-items:center; gap:3px;
+    padding:6px 2px 5px; border-radius:8px; border:1px solid var(--border);
+    background:var(--legend-bg); cursor:grab; user-select:none; touch-action:none;
+    transition:background .15s, border-color .15s, transform .1s; }
+  .lib-item:hover { background:var(--node-hover); border-color:var(--accent); }
+  .lib-item:active { transform:scale(.96); }
+  .lib-item .sym { display:flex; pointer-events:none; }
+  .lib-item .sym svg { width:50px; height:auto; display:block; }
+  .lib-item span { font-size:11px; color:var(--fg-muted); pointer-events:none; white-space:nowrap; }
+  .lib-hint { margin-top:14px; font-size:11px; color:var(--fg-dim);
+    line-height:1.7; padding-top:12px; border-top:1px dashed var(--border); }
+  .lib-hint b { color:var(--fg-muted); }
+
+  .empty-tip { font-size:13px; color:var(--fg-dim); line-height:1.7;
+    padding:12px; background:var(--empty-bg); border-radius:8px; border:1px dashed var(--border); }
+  .field { margin-bottom:14px; }
+  .field label { display:block; font-size:12px; color:var(--fg-muted);
+    margin-bottom:6px; font-weight:500; }
+  .field input, .field select, .field textarea {
+    width:100%; font:inherit; font-size:13px; padding:8px 10px; border-radius:6px;
+    border:1px solid var(--input-border); background:var(--input-bg); color:var(--fg);
+    outline:none; transition:.15s; font-family:inherit; resize:vertical; }
+  .field textarea { min-height:56px; }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    border-color:var(--accent); box-shadow:0 0 0 3px rgba(37,99,235,.14); }
+
+  .btns { display:flex; flex-direction:column; gap:8px; margin-top:20px; }
+  .btns button { font:inherit; font-size:13px; padding:9px 12px; border-radius:6px;
+    cursor:pointer; transition:.15s; border:1px solid var(--input-border);
+    background:var(--legend-bg); color:var(--fg); }
+  .btns button:hover { background:var(--node-hover); }
+  .btns button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btns button.primary:hover { background:var(--accent-hover); }
+  .btns button.danger { background:var(--panel-bg); border-color:#fca5a5; color:#dc2626; }
+  .btns button.danger:hover { background:#fef2f2; color:#b91c1c; }
+  body.dark .btns button.danger:hover { background:#450a0a; }
+  .btns button.warn { background:var(--panel-bg); border-color:#fdba74; color:#c2410c; }
+  .btns button.warn:hover { background:#fff7ed; }
+  body.dark .btns button.warn:hover { background:#451a03; }
+  .btns button.sync { background:var(--panel-bg); border-color:#a78bfa; color:#6d28d9; }
+  .btns button.sync:hover { background:#f5f3ff; }
+  body.dark .btns button.sync:hover { background:#2e1065; }
+
+  .legend { margin-top:22px; padding-top:16px; border-top:1px solid var(--border);
+    font-size:12px; color:var(--fg-muted); line-height:1.9; }
+  .legend b { color:var(--fg); }
+  .legend .k { display:inline-block; min-width:16px; text-align:center;
+    font-family:ui-monospace, monospace; font-size:11px;
+    background:var(--legend-bg); border-radius:4px; padding:1px 5px;
+    margin-right:6px; color:var(--accent); border:1px solid var(--border); }
+
+  .equip-list { display:flex; flex-direction:column; gap:5px; margin-bottom:6px; }
+  .equip-item { display:flex; align-items:center; gap:6px;
+    padding:4px 8px; background:var(--equip-bg); border:1px solid var(--border);
+    border-radius:5px; font-size:12px; }
+  .equip-item .name { flex:1; color:var(--fg); overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; }
+  .equip-item input { width:56px; padding:3px 6px; font-size:12px;
+    border:1px solid var(--input-border); border-radius:4px;
+    text-align:right; outline:none; background:var(--input-bg);
+    color:var(--fg); font-family:inherit; }
+  .equip-item input:focus { border-color:var(--accent); }
+  .equip-item .del { cursor:pointer; color:#dc2626; border:none; background:none;
+    font-size:14px; padding:0 4px; line-height:1; }
+  .equip-item .del:hover { color:#b91c1c; }
+  .equip-add { display:flex; gap:5px; }
+  .equip-add input { font-size:12px; padding:6px 8px;
+    border:1px solid var(--input-border); border-radius:5px;
+    outline:none; font-family:inherit; min-width:0;
+    background:var(--input-bg); color:var(--fg); }
+  .equip-add input:focus { border-color:var(--accent); box-shadow:0 0 0 2px rgba(37,99,235,.12); }
+  .equip-add #equip-name { flex:2; }
+  .equip-add #equip-count { flex:1; min-width:48px; }
+  .equip-add button { padding:0 12px; border-radius:5px;
+    border:1px solid var(--accent); background:var(--accent); color:#fff;
+    cursor:pointer; font-size:14px; font-weight:700; }
+  .equip-add button:hover { background:var(--accent-hover); }
+  .stats-empty { color:var(--fg-dim); font-style:italic; font-size:11px; padding:3px 0; }
+
+  #stats { font-size:12px; }
+  .stats-block { padding:10px 12px; background:var(--stats-bg);
+    border:1px solid var(--border); border-radius:8px; margin-bottom:10px; }
+  .stats-block.highlight { background:var(--stats-highlight-bg);
+    border-color:var(--stats-highlight-border); }
+  .stats-title { font-size:12px; font-weight:600; color:var(--fg);
+    margin-bottom:8px; padding-bottom:6px; border-bottom:1px dashed var(--border);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .stats-row { display:flex; justify-content:space-between; align-items:baseline;
+    padding:3px 0; color:var(--fg-muted); }
+  .stats-row b { color:#0a3d91; font-weight:700; font-size:14px; }
+  body.dark .stats-row b { color:#7cb1f0; }
+  .stats-row.personnel b { color:#1e40af; }
+  body.dark .stats-row.personnel b { color:#93c5fd; }
+  .stats-equip { margin-top:8px; padding-top:8px;
+    border-top:1px dashed var(--border); display:flex; flex-direction:column; gap:3px; }
+  .stats-equip-item { display:flex; justify-content:space-between;
+    color:var(--fg-muted); padding:1px 0; }
+  .stats-equip-item span:last-child { color:var(--fg); font-weight:600; }
+
+  .modal-mask { position:fixed; inset:0; background:rgba(15,23,42,.55);
+    display:none; align-items:center; justify-content:center; z-index:200; }
+  .modal-mask.show { display:flex; }
+  .modal { background:var(--panel-bg); border:1px solid var(--border);
+    border-radius:12px; padding:20px 22px; min-width:360px; max-width:90vw;
+    max-height:80vh; box-shadow:0 20px 40px rgba(0,0,0,.3);
+    display:flex; flex-direction:column; }
+  .modal h3 { margin:0 0 14px; font-size:15px; color:var(--fg);
+    padding-bottom:10px; border-bottom:1px solid var(--border); }
+  .modal-list { flex:1; overflow-y:auto; display:flex; flex-direction:column;
+    gap:6px; margin-bottom:14px; min-height:80px; max-height:50vh; }
+  .modal-item { display:flex; align-items:center; gap:10px; padding:9px 12px;
+    background:var(--legend-bg); border:1px solid var(--border); border-radius:7px;
+    cursor:pointer; transition:.15s; }
+  .modal-item:hover { background:var(--node-hover); border-color:var(--accent); }
+  .modal-item .info { flex:1; min-width:0; }
+  .modal-item .name { font-size:13px; font-weight:600; color:var(--fg);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .modal-item .meta { font-size:11px; color:var(--fg-dim);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .modal-item .del-btn { background:none; border:none; color:#dc2626;
+    cursor:pointer; font-size:15px; padding:2px 6px; line-height:1; border-radius:4px; }
+  .modal-item .del-btn:hover { background:rgba(220,38,38,.12); }
+  .modal-actions { display:flex; gap:8px; justify-content:flex-end; }
+  .modal-actions button { font:inherit; font-size:13px; padding:8px 14px;
+    border-radius:6px; cursor:pointer; transition:.15s;
+    border:1px solid var(--input-border); background:var(--legend-bg); color:var(--fg); }
+  .modal-actions button:hover { background:var(--node-hover); }
+  .modal-actions button.primary { background:var(--accent);
+    border-color:var(--accent); color:#fff; }
+  .modal-actions button.primary:hover { background:var(--accent-hover); }
+  .modal-input { width:100%; font:inherit; font-size:13px;
+    padding:9px 11px; margin-bottom:14px;
+    border:1px solid var(--input-border); background:var(--input-bg);
+    color:var(--fg); border-radius:6px; outline:none; }
+  .modal-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(37,99,235,.14); }
+  .modal-empty { padding:20px; text-align:center; color:var(--fg-dim); font-size:13px; }
+
+  .preset-item { display:flex; align-items:center; gap:14px; padding:14px 16px;
+    background:var(--legend-bg); border:1px solid var(--border); border-radius:9px;
+    cursor:pointer; transition:.15s; }
+  .preset-item:hover { background:var(--node-hover); border-color:var(--accent); transform:translateY(-1px); }
+  .preset-icon { font-size:28px; line-height:1; }
+  .preset-info { flex:1; }
+  .preset-info .name { font-size:14px; font-weight:700; color:var(--fg); margin-bottom:3px; }
+  .preset-info .desc { font-size:12px; color:var(--fg-muted); line-height:1.5; }
+
+  .changelog-body { flex:1; overflow-y:auto; padding-right:6px;
+    max-height:60vh; font-size:13px; color:var(--fg); }
+  .changelog-version { margin-bottom:16px; padding-bottom:12px;
+    border-bottom:1px dashed var(--border); }
+  .changelog-version:last-child { border-bottom:none; margin-bottom:0; padding-bottom:0; }
+  .changelog-version h4 { margin:0 0 8px; font-size:14px;
+    color:var(--accent); font-weight:700; }
+  .changelog-version h4 span { font-size:12px; color:var(--fg-dim);
+    font-weight:400; margin-left:8px; }
+  .changelog-version ul { margin:0; padding-left:20px;
+    line-height:1.8; color:var(--fg-muted); }
+  .changelog-version li { margin-bottom:2px; }
+
+  #watermark { position:fixed; bottom:10px; left:50%; transform:translateX(-50%);
+    font-size:11px; color:var(--fg-dim); opacity:.85; pointer-events:none; z-index:100;
+    background:var(--panel-bg); padding:4px 14px; border-radius:14px;
+    border:1px solid var(--border); box-shadow:0 2px 8px var(--shadow);
+    user-select:none; white-space:nowrap; letter-spacing:.3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚔ 军队编制编辑器 <span class="version" id="version-label">v0.0.0</span></h1>
+  <span class="hint">拖动兵牌 · Space 折叠 · 拖到左侧兵牌库可删除</span>
+  <div class="spacer"></div>
+  <button id="btn-theme">🌙 暗黑</button>
+  <button id="btn-collapse-all">全部折叠</button>
+  <button id="btn-expand-all">全部展开</button>
+  <button id="btn-save" class="green">💾 保存</button>
+  <button id="btn-load">📂 加载</button>
+  <button id="btn-preset">🗂 切换预设</button>
+  <button id="btn-changelog">📜 更新日志</button>
+  <button id="btn-renumber" class="primary">自动编号</button>
+</header>
+
+<div id="main">
+  <aside class="lib">
+    <h2>兵牌库</h2>
+    <div class="field" style="margin-bottom:12px">
+      <label>编制层级</label>
+      <select id="lib-echelon"></select>
+    </div>
+    <div class="lib-grid" id="lib-grid"></div>
+    <div class="lib-hint">
+      <b>拖动</b>兵牌到树状图中放置<br>
+      <b>点击</b>可添加到当前选中单位<br>
+      <b>拖到此处</b>可删除树中的单位
+    </div>
+  </aside>
+
+  <div id="wrap">
+    <div id="canvas">
+      <svg id="links"></svg>
+      <div id="nodes"></div>
+    </div>
+  </div>
+
+  <aside class="props">
+    <h2>单位属性</h2>
+    <div id="panel"></div>
+    <h2 style="margin-top:24px">统计汇总</h2>
+    <div id="stats"></div>
+  </aside>
+</div>
+
+<div id="watermark">本网页由 BiliBili@勘茶Kchs_ 与 DeepSeek 联合创作，仅供娱乐，感谢支持</div>
+
+<div class="modal-mask" id="save-modal">
+  <div class="modal">
+    <h3>💾 保存当前编制</h3>
+    <input type="text" class="modal-input" id="save-name-input" placeholder="输入存档名称..." maxlength="40">
+    <div class="modal-actions">
+      <button id="save-cancel">取消</button>
+      <button id="save-confirm" class="primary">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="load-modal">
+  <div class="modal" style="min-width:420px;">
+    <h3>📂 选择存档加载</h3>
+    <div class="modal-list" id="load-list"></div>
+    <div class="modal-actions">
+      <button id="load-cancel">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="preset-modal">
+  <div class="modal" style="min-width:480px;">
+    <h3>🗂 选择默认预设</h3>
+    <div class="modal-list" style="gap:10px;">
+      <div class="preset-item" data-preset="armor">
+        <div class="preset-icon">⚔️</div>
+        <div class="preset-info">
+          <div class="name">装甲师</div>
+          <div class="desc">2 装甲团 · 1 机步团 · 1 炮兵团 · 师直属支援营（机械化侦察）</div>
+        </div>
+      </div>
+      <div class="preset-item" data-preset="infantry">
+        <div class="preset-icon">🎖️</div>
+        <div class="preset-info">
+          <div class="name">步兵师</div>
+          <div class="desc">3 步兵团 · 1 炮兵团 · 师直属支援营（传统徒步步兵）</div>
+        </div>
+      </div>
+      <div class="preset-item" data-preset="mech">
+        <div class="preset-icon">🛡️</div>
+        <div class="preset-info">
+          <div class="name">机械化步兵师</div>
+          <div class="desc">2 机步团 · 1 装甲团 · 1 炮兵团 · 师直属支援营（机械化侦察）</div>
+        </div>
+      </div>
+      <div class="preset-item" data-preset="airborne">
+        <div class="preset-icon">🪂</div>
+        <div class="preset-info">
+          <div class="name">空降师</div>
+          <div class="desc">3 空降团 · 1 空降炮兵团 · 师直属空降支援营（轻装、可空投）</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button id="preset-cancel">取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="changelog-modal">
+  <div class="modal" style="min-width:460px;">
+    <h3>📜 更新日志</h3>
+    <div class="changelog-body" id="changelog-body"></div>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button id="changelog-close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   版本信息 & 更新日志 看什么看0.o
+   ========================================================= */
+
+const VERSION = '1.0.7';
+
+console.log(
+  '%c⚔ 军队编制编辑器 · v' + VERSION + '\n' +
+  '%c作者：BiliBili@勘茶Kchs_ 与 DeepSeek 联合创作\n' +
+  '%c本工具完全免费，仅供娱乐。若您通过付费渠道获得，请注意可能已上当受骗。\n' +
+  '%c请勿移除署名后二次分发或收费。',
+  'font-size:18px;color:#2563eb;font-weight:bold;',
+  'font-size:13px;color:#dc2626;',
+  'font-size:12px;color:#ea580c;',
+  'font-size:12px;color:#64748b;'
+);
+
+const CHANGELOG = [
+  {
+    version: '1.0.7',
+    date: '2026-09-18',
+    changes: [
+      '增加：背景水印',
+    ],
+  },
+  {
+    version: '1.0.6',
+    date: '2026-09-18',
+    changes: [
+      '修复：安和昴会跑到主界面Ciallo～(∠・ω< )⌒★',
+    ],
+  },
+  {
+    version: '1.0.5',
+    date: '2026-09-18',
+    changes: [
+      '新增：装甲师预设归位，现在共四套默认配置（装甲师 / 步兵师 / 机械化步兵师 / 空降师）',
+      '修复：师直属营的连队不再跨营共用字母序列，每个师直属营内部独立从 A 开始',
+    ],
+  },
+  {
+    version: '1.0.0',
+    date: '2026-09-17',
+    changes: [
+      '新增：三套默认预设（步兵师 / 机械化步兵师 / 空降师）',
+    ],
+  },
+  {
+    version: '0.9.0',
+    date: '2026-09-15',
+    changes: [
+      '修复：师级直接下辖的营，其连队现在也使用 ABC 格式连续编号',
+      '新增：将单位拖到左侧兵牌库可快速删除',
+      '新增：顶栏版本号显示与更新日志弹窗',
+    ],
+  },
+  {
+    version: '0.8.0',
+    date: '2026-09-13',
+    changes: [
+      '新增：侦察类加入辅助部队，自动命名为「师直属侦察营」等形式',
+      '新增：同步人数与装备到同级同类单位',
+      '新增：备注功能，节点右下角显示 📝 图标',
+      '新增：保存 / 加载编制（localStorage 本地存储）',
+    ],
+  },
+  {
+    version: '0.7.0',
+    date: '2026-09-10',
+    changes: [
+      '新增：完整装甲师预设（默认折叠）',
+      '新增：主题切换（正常 / 暗黑）',
+      '新增：底部水印',
+      '优化：反坦克、防空、工程兵兵牌样式',
+    ],
+  },
+  {
+    version: '0.6.0',
+    date: '2026-09-05',
+    changes: [
+      '新增：折叠功能，可折叠任意单位的下属部队',
+      '新增：人数与装备统计（选中单位、全军总计）',
+      '新增：装备编辑器（名称 + 数量）',
+    ],
+  },
+  {
+    version: '0.5.0',
+    date: '2026-09-01',
+    changes: [
+      '初始版本：树状图编制编辑器',
+      '拖动兵牌调整编制、自动编号、快捷键',
+      '北约标准兵牌（APP-6）',
+    ],
+  },
+];
+
+document.getElementById('version-label').textContent = 'v' + VERSION;
+
+document.getElementById('changelog-body').innerHTML = CHANGELOG.map(v => `
+  <div class="changelog-version">
+    <h4>v${v.version}<span>${v.date}</span></h4>
+    <ul>${v.changes.map(c => `<li>${escapeHtml(c)}</li>`).join('')}</ul>
+  </div>
+`).join('');
+
+/* =========================================================
+   基础数据
+   ========================================================= */
+
+const TYPES = {
+  infantry:       { name:'步兵' },
+  light_infantry: { name:'轻步兵' },
+  mech:           { name:'机步' },
+  armor:          { name:'装甲' },
+  airborne:       { name:'空降' },
+  recon:          { name:'侦察' },
+  recon_mech:     { name:'侦察（机械）' },
+  mountain:       { name:'山地军' },
+  artillery:      { name:'炮兵' },
+  anti_tank:      { name:'反坦克' },
+  aaa:            { name:'防空' },
+  engineer:       { name:'工兵' },
+  signal:         { name:'通信' },
+  medical:        { name:'医疗' },
+  logistics:      { name:'后勤' },
+  hq:             { name:'指挥' },
+};
+
+const ECHELONS = {
+  army:{name:'集团军'}, corps:{name:'军'}, division:{name:'师'},
+  brigade:{name:'旅'}, regiment:{name:'团'}, battalion:{name:'营'},
+  company:{name:'连'}, platoon:{name:'排'}, squad:{name:'班'}, team:{name:'组'},
+};
+const ECHELON_ORDER = ['army','corps','division','brigade','regiment','battalion','company','platoon','squad','team'];
+
+const AUX_TYPES = [
+  'artillery','anti_tank','aaa',
+  'signal','hq','logistics','medical','engineer',
+  'recon','recon_mech',
+];
+
+/* =========================================================
+   兵牌 SVG
+   ========================================================= */
+
+const FRAME_W = 72, FRAME_H = 48, TOP_PAD = 22;
+const SYM_W = FRAME_W, SYM_H = FRAME_H + TOP_PAD, FRAME_Y = TOP_PAD;
+const INK = '#0a3d91', PAPER = '#dce8f7', BORDER_SW = 3;
+
+function echelonMarkSVG(echelon) {
+  const cx = SYM_W/2, cy = TOP_PAD - 11;
+  const drawXs = (n,gap,size) => {
+    let s=''; const h=size/2, sx=cx-(n-1)*gap/2;
+    for (let i=0;i<n;i++){ const x=sx+i*gap;
+      s += `<line x1="${x-h}" y1="${cy-h}" x2="${x+h}" y2="${cy+h}" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/>`;
+      s += `<line x1="${x+h}" y1="${cy-h}" x2="${x-h}" y2="${cy+h}" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/>`;
+    } return s;
+  };
+  const drawBars = (n,gap,h) => {
+    let s=''; const half=h/2, sx=cx-(n-1)*gap/2;
+    for (let i=0;i<n;i++){ const x=sx+i*gap;
+      s += `<line x1="${x}" y1="${cy-half}" x2="${x}" y2="${cy+half}" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/>`;
+    } return s;
+  };
+  const drawDots = (n,gap) => {
+    let s=''; const sx=cx-(n-1)*gap/2;
+    for (let i=0;i<n;i++) s += `<circle cx="${sx+i*gap}" cy="${cy}" r="2.7" fill="${INK}"/>`;
+    return s;
+  };
+  switch (echelon) {
+    case 'army': return drawXs(4,7,5.5);
+    case 'corps': return drawXs(3,8,5.5);
+    case 'division': return drawXs(2,10,6.5);
+    case 'brigade': return drawXs(1,0,6.5);
+    case 'regiment': return drawBars(3,7,11);
+    case 'battalion': return drawBars(2,8,11);
+    case 'company': return drawBars(1,0,11);
+    case 'platoon': return drawDots(3,7);
+    case 'squad': return drawDots(2,7);
+    case 'team': return drawDots(1,0);
+    default: return '';
+  }
+}
+
+function typeIconSVG(type) {
+  const c = INK, cx=36, cy=46, x0=8, x1=64, y0=26, y1=66;
+  switch (type) {
+    case 'infantry':
+      return `<path d="M${x0} ${y0} L${x1} ${y1} M${x1} ${y0} L${x0} ${y1}" stroke="${c}" stroke-width="2.8" fill="none" stroke-linecap="round"/>`;
+    case 'light_infantry':
+      return `<path d="M${x0} 30 L${x1} ${y1} M${x1} 30 L${x0} ${y1}" stroke="${c}" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+              <path d="M20 32 Q 36 18 52 32" stroke="${c}" stroke-width="2.4" fill="none" stroke-linecap="round"/>`;
+    case 'mech':
+      return `<ellipse cx="${cx}" cy="48" rx="26" ry="16" fill="none" stroke="${c}" stroke-width="2.6"/>
+              <path d="M12 34 L60 62 M60 34 L12 62" stroke="${c}" stroke-width="2.4" fill="none" stroke-linecap="round"/>`;
+    case 'armor':
+      return `<ellipse cx="${cx}" cy="48" rx="26" ry="16" fill="none" stroke="${c}" stroke-width="2.8"/>`;
+    case 'airborne':
+      return `<path d="M${x0} ${y0} L${x1} ${y1} M${x1} ${y0} L${x0} ${y1}" stroke="${c}" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+              <path d="M28 38 Q36 28 44 38" stroke="${c}" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+              <path d="M30 38 L36 56 L42 38 Z" stroke="${c}" stroke-width="2.6" fill="none" stroke-linejoin="round" stroke-linecap="round"/>`;
+    case 'recon':
+      return `<line x1="10" y1="62" x2="62" y2="30" stroke="${c}" stroke-width="3.2" stroke-linecap="round"/>`;
+    case 'recon_mech':
+      return `<ellipse cx="${cx}" cy="48" rx="26" ry="16" fill="none" stroke="${c}" stroke-width="2.6"/>
+              <line x1="${x0}" y1="${y1}" x2="${x1}" y2="${y0}" stroke="${c}" stroke-width="2.8" stroke-linecap="round"/>`;
+    case 'mountain':
+      return `<path d="M${x0} ${y0} L${x1} ${y1} M${x1} ${y0} L${x0} ${y1}" stroke="${c}" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+              <path d="M22 ${y1} L36 40 L50 ${y1} Z" fill="${c}" stroke="${c}" stroke-width="0.5" stroke-linejoin="round"/>`;
+    case 'artillery':
+      return `<circle cx="${cx}" cy="${cy}" r="11" fill="${c}"/>`;
+    case 'anti_tank':
+      return `<circle cx="${cx}" cy="${cy}" r="7.5" fill="${c}"/>
+              <path d="M${x0} ${y1} L${cx} ${y0} L${x1} ${y1}" stroke="${c}" stroke-width="2.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/>`;
+    case 'aaa':
+      return `<circle cx="${cx}" cy="${cy}" r="7.5" fill="${c}"/>
+              <path d="M${x0} ${y0} L${cx} ${y1} L${x1} ${y0}" stroke="${c}" stroke-width="2.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/>`;
+    case 'engineer':
+      return `<g transform="rotate(90 36 46)">
+                <path d="M26 28 V64 M26 28 H46 M26 46 H42 M26 64 H46"
+                      stroke="${c}" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </g>`;
+    case 'signal':
+      return `<path d="M44 ${y0} L28 ${cy} L40 ${cy} L24 ${y1}" stroke="${c}" stroke-width="3" fill="none" stroke-linejoin="round" stroke-linecap="round"/>`;
+    case 'medical':
+      return `<line x1="${cx}" y1="32" x2="${cx}" y2="60" stroke="${c}" stroke-width="6.5" stroke-linecap="round"/>
+              <line x1="22" y1="${cy}" x2="50" y2="${cy}" stroke="${c}" stroke-width="6.5" stroke-linecap="round"/>`;
+    case 'logistics':
+      return `<circle cx="${cx}" cy="${cy}" r="11" fill="${c}"/>
+              <line x1="28" y1="${cy}" x2="44" y2="${cy}" stroke="${PAPER}" stroke-width="3" stroke-linecap="round"/>`;
+    case 'hq':
+      return `<text x="${cx}" y="${cy}" dy="0.35em" text-anchor="middle"
+              font-family="Arial, sans-serif" font-size="24" font-weight="900"
+              fill="${c}" letter-spacing="1">HQ</text>`;
+    default: return '';
+  }
+}
+
+function buildSymbol(type, echelon) {
+  return `<svg viewBox="0 0 ${SYM_W} ${SYM_H}" width="${SYM_W}" height="${SYM_H}" xmlns="http://www.w3.org/2000/svg">
+    <rect x="1.5" y="${FRAME_Y+1.5}" width="${FRAME_W-3}" height="${FRAME_H-3}" rx="2.5"
+      fill="${PAPER}" stroke="${INK}" stroke-width="${BORDER_SW}"/>
+    ${echelonMarkSVG(echelon)}
+    ${typeIconSVG(type)}
+  </svg>`;
+}
+
+/* =========================================================
+   数据模型
+   ========================================================= */
+
+let uid = 0;
+function newNode(type, echelon, name) {
+  return { id:'n'+(++uid), type, echelon,
+    name:name||'', customName:!!name, remark:'',
+    children:[], collapsed:false, personnel:0, equipment:[] };
+}
+
+let root = null, selectedId = null, nodeById = {};
+
+function forEachNode(node, fn) { fn(node); for (const c of node.children) forEachNode(c, fn); }
+function forEachVisibleNode(node, fn) {
+  fn(node);
+  if (!node.collapsed) for (const c of node.children) forEachVisibleNode(c, fn);
+}
+function findParent(node) {
+  if (node === root) return null;
+  let found = null;
+  forEachNode(root, n => { if (n.children.includes(node)) found = n; });
+  return found;
+}
+function isInSubtree(node, ancestor) {
+  let found = false;
+  forEachNode(ancestor, n => { if (n === node) found = true; });
+  return found;
+}
+
+/* =========================================================
+   智能编号
+   ========================================================= */
+
+function isAuxSub(parent, child) {
+  if (!['division','regiment','brigade'].includes(parent.echelon)) return false;
+  return AUX_TYPES.includes(child.type);
+}
+
+function getParentShortName(parent) {
+  const name = parent.name || '';
+  if (name.includes('师')) return '师';
+  if (name.includes('团')) return '团';
+  if (name.includes('旅')) return '旅';
+  const map = { division:'师', regiment:'团', brigade:'旅' };
+  return map[parent.echelon] || '';
+}
+
+function renumber(root, force) {
+  const companyCounters = {};
+  const numCounters = {};
+
+  function walk(node, ancestors) {
+    for (const child of node.children) {
+      if (force) child.customName = false;
+      if (!child.customName) {
+        if (isAuxSub(node, child)) {
+          const sn = getParentShortName(node);
+          const tn = TYPES[child.type] ? TYPES[child.type].name : '';
+          const en = ECHELONS[child.echelon] ? ECHELONS[child.echelon].name : '';
+          child.name = `${sn}直属${tn}${en}`;
+        } else {
+          switch (child.echelon) {
+            case 'battalion': {
+              const k = node.id + '_battalion';
+              const n = (numCounters[k] || 0) + 1;
+              numCounters[k] = n;
+              child.name = `${n}营`;
+              break;
+            }
+            case 'company': {
+              let regAnc = null, bnAnc = null;
+              for (let i = ancestors.length - 1; i >= 0; i--) {
+                const p = ancestors[i];
+                if (!regAnc && (p.echelon === 'regiment' || p.echelon === 'brigade')) regAnc = p;
+                if (!bnAnc && p.echelon === 'battalion') bnAnc = p;
+                if (regAnc && bnAnc) break;
+              }
+              const anchor = regAnc || bnAnc;
+              if (anchor) {
+                const k = anchor.id;
+                const n = companyCounters[k] || 0;
+                companyCounters[k] = n + 1;
+                child.name = `${String.fromCharCode(65 + (n % 26))}连`;
+              } else {
+                const k = node.id + '_company';
+                const n = (numCounters[k] || 0) + 1;
+                numCounters[k] = n;
+                child.name = `${n}连`;
+              }
+              break;
+            }
+            case 'platoon': {
+              const k = node.id + '_platoon';
+              const n = (numCounters[k] || 0) + 1;
+              numCounters[k] = n;
+              child.name = `${n}排`;
+              break;
+            }
+            case 'squad': {
+              const k = node.id + '_squad';
+              const n = (numCounters[k] || 0) + 1;
+              numCounters[k] = n;
+              child.name = `${n}班`;
+              break;
+            }
+            case 'team': {
+              const k = node.id + '_team';
+              const n = (numCounters[k] || 0) + 1;
+              numCounters[k] = n;
+              child.name = `${n}组`;
+              break;
+            }
+            default: {
+              const k = node.id + '_' + child.echelon;
+              const n = (numCounters[k] || 0) + 1;
+              numCounters[k] = n;
+              const t = TYPES[child.type] ? TYPES[child.type].name : '';
+              const e = ECHELONS[child.echelon] ? ECHELONS[child.echelon].name : '';
+              child.name = `第${n}${t}${e}`;
+            }
+          }
+        }
+      }
+      ancestors.push(child);
+      walk(child, ancestors);
+      ancestors.pop();
+    }
+  }
+  walk(root, [root]);
+}
+
+/* =========================================================
+   营级构建器
+   ========================================================= */
+
+function makeBattalion(type, bnPersonnel, bnEquip, coPersonnel, coEquip, plPersonnel, plEquip, sqPersonnel, sqEquip) {
+  const bn = newNode(type, 'battalion');
+  bn.personnel = bnPersonnel;
+  bn.equipment = JSON.parse(JSON.stringify(bnEquip));
+  for (let c = 0; c < 3; c++) {
+    const co = newNode(type, 'company');
+    co.personnel = coPersonnel;
+    co.equipment = JSON.parse(JSON.stringify(coEquip));
+    for (let p = 0; p < 3; p++) {
+      const pl = newNode(type, 'platoon');
+      pl.personnel = plPersonnel;
+      pl.equipment = JSON.parse(JSON.stringify(plEquip));
+      for (let s = 0; s < 3; s++) {
+        const sq = newNode(type, 'squad');
+        sq.personnel = sqPersonnel;
+        sq.equipment = JSON.parse(JSON.stringify(sqEquip));
+        pl.children.push(sq);
+      }
+      co.children.push(pl);
+    }
+    bn.children.push(co);
+  }
+  return bn;
+}
+
+function makeInfantryBattalion() {
+  return makeBattalion(
+    'infantry',
+    60,
+    [{name:'指挥车',count:1},{name:'迫击炮',count:6},{name:'重机枪',count:6},{name:'轻机枪',count:9}],
+    120,
+    [{name:'迫击炮',count:2},{name:'重机枪',count:2},{name:'轻机枪',count:6}],
+    32,
+    [{name:'轻机枪',count:2},{name:'迫击炮',count:1}],
+    9,
+    [{name:'轻机枪',count:1}]
+  );
+}
+
+function makeMechBattalion() {
+  return makeBattalion(
+    'mech',
+    60,
+    [{name:'指挥车',count:2},{name:'重机枪',count:6},{name:'迫击炮',count:6},{name:'轻机枪',count:8}],
+    130,
+    [{name:'步兵战车',count:13},{name:'轻机枪',count:6},{name:'重机枪',count:3},{name:'迫击炮',count:2}],
+    32,
+    [{name:'步兵战车',count:4},{name:'轻机枪',count:3},{name:'反坦克导弹',count:2}],
+    9,
+    [{name:'轻机枪',count:1},{name:'反坦克导弹',count:1}]
+  );
+}
+
+function makeArmorBattalion() {
+  const bn = newNode('armor','battalion');
+  bn.personnel = 52;
+  bn.equipment = [{name:'指挥车',count:2},{name:'重机枪',count:4},{name:'迫击炮',count:2},{name:'轻机枪',count:6}];
+  for (let c=0;c<3;c++){
+    const co = newNode('armor','company');
+    co.personnel = 14;
+    co.equipment = [{name:'主战坦克',count:14},{name:'轻机枪',count:4},{name:'重机枪',count:1}];
+    for (let p=0;p<3;p++){
+      const pl = newNode('armor','platoon');
+      pl.personnel = 4;
+      pl.equipment = [{name:'主战坦克',count:4},{name:'轻机枪',count:1}];
+      for (let s=0;s<4;s++){
+        const sq = newNode('armor','squad');
+        sq.personnel = 3;
+        sq.equipment = [{name:'主战坦克',count:1}];
+        pl.children.push(sq);
+      }
+      co.children.push(pl);
+    }
+    bn.children.push(co);
+  }
+  return bn;
+}
+
+function makeAirborneBattalion() {
+  return makeBattalion(
+    'airborne',
+    50,
+    [{name:'迫击炮',count:6},{name:'重机枪',count:6},{name:'轻机枪',count:12},{name:'反坦克导弹',count:8}],
+    110,
+    [{name:'迫击炮',count:2},{name:'重机枪',count:2},{name:'轻机枪',count:6},{name:'反坦克导弹',count:2}],
+    30,
+    [{name:'轻机枪',count:2},{name:'反坦克导弹',count:1}],
+    9,
+    [{name:'轻机枪',count:1}]
+  );
+}
+
+/* =========================================================
+   支援营构建器
+   ========================================================= */
+
+function makeArtyBattalion(kind) {
+  const bn = newNode('artillery','battalion');
+  bn.personnel = 30;
+  const eqName = kind === 'mlrs' ? '多管火箭炮' : (kind === 'light' ? '轻型榴弹炮' : '自行火炮');
+  bn.equipment = [{name:'指挥车',count:2},{name:eqName,count:18},{name:'轻机枪',count:12},{name:'迫击炮',count:4}];
+  for (let c=0;c<3;c++){
+    const co = newNode('artillery','company');
+    co.personnel = 60;
+    co.equipment = [{name:eqName,count:6},{name:'轻机枪',count:4}];
+    for (let p=0;p<2;p++){
+      const pl = newNode('artillery','platoon');
+      pl.personnel = 20;
+      pl.equipment = [{name:eqName,count:3},{name:'轻机枪',count:2}];
+      co.children.push(pl);
+    }
+    bn.children.push(co);
+  }
+  return bn;
+}
+
+function makeAaaBattalion() {
+  const bn = newNode('aaa','battalion');
+  bn.personnel = 40;
+  bn.equipment = [{name:'指挥车',count:2},{name:'自行高炮',count:18},{name:'防空导弹',count:12},{name:'轻机枪',count:8},{name:'重机枪',count:4}];
+  for (let c=0;c<3;c++){
+    const co = newNode('aaa','company');
+    co.personnel = 80;
+    co.equipment = [{name:'自行高炮',count:6},{name:'轻机枪',count:2}];
+    bn.children.push(co);
+  }
+  return bn;
+}
+
+function makeAntiTankBattalion() {
+  const bn = newNode('anti_tank','battalion');
+  bn.personnel = 40;
+  bn.equipment = [{name:'指挥车',count:2},{name:'反坦克导弹',count:24},{name:'反坦克炮',count:12},{name:'轻机枪',count:8},{name:'重机枪',count:4}];
+  for (let c=0;c<3;c++){
+    const co = newNode('anti_tank','company');
+    co.personnel = 80;
+    co.equipment = [{name:'反坦克导弹',count:8},{name:'轻机枪',count:2}];
+    bn.children.push(co);
+  }
+  return bn;
+}
+
+function makeReconBattalion(mech) {
+  const bn = newNode(mech ? 'recon_mech' : 'recon', 'battalion');
+  bn.personnel = 50;
+  bn.equipment = [{name:'指挥车',count:3},{name:'装甲侦察车',count:24},{name:'轻机枪',count:12},{name:'重机枪',count:6},{name:'反坦克导弹',count:8},{name:'迫击炮',count:4}];
+  for (let c=0;c<3;c++){
+    const co = newNode(mech ? 'recon_mech' : 'recon', 'company');
+    co.personnel = 90;
+    co.equipment = [{name:'装甲侦察车',count:8},{name:'轻机枪',count:4},{name:'重机枪',count:2},{name:'反坦克导弹',count:2}];
+    bn.children.push(co);
+  }
+  return bn;
+}
+
+function makeEngineerBattalion() {
+  const bn = newNode('engineer','battalion');
+  bn.personnel = 60;
+  bn.equipment = [{name:'指挥车',count:2},{name:'工程车',count:15},{name:'轻机枪',count:12},{name:'重机枪',count:4},{name:'迫击炮',count:4}];
+  for (let c=0;c<3;c++){
+    const co = newNode('engineer','company');
+    co.personnel = 100;
+    co.equipment = [{name:'工程车',count:5},{name:'轻机枪',count:4},{name:'重机枪',count:2}];
+    bn.children.push(co);
+  }
+  return bn;
+}
+
+function makeSignalBattalion() {
+  const bn = newNode('signal','battalion');
+  bn.personnel = 50;
+  bn.equipment = [{name:'指挥车',count:4},{name:'通信车',count:18},{name:'轻机枪',count:10},{name:'重机枪',count:4}];
+  for (let c=0;c<3;c++){
+    const co = newNode('signal','company');
+    co.personnel = 80;
+    co.equipment = [{name:'通信车',count:6},{name:'轻机枪',count:2}];
+    bn.children.push(co);
+  }
+  return bn;
+}
+
+function makeLogisticsBattalion() {
+  const bn = newNode('logistics','battalion');
+  bn.personnel = 60;
+  bn.equipment = [{name:'指挥车',count:2},{name:'运输卡车',count:60},{name:'油罐车',count:20},{name:'轻机枪',count:12},{name:'重机枪',count:6}];
+  for (let c=0;c<3;c++){
+    const co = newNode('logistics','company');
+    co.personnel = 120;
+    co.equipment = [{name:'运输卡车',count:20},{name:'轻机枪',count:2}];
+    bn.children.push(co);
+  }
+  return bn;
+}
+
+function makeMedicalBattalion() {
+  const bn = newNode('medical','battalion');
+  bn.personnel = 40;
+  bn.equipment = [{name:'指挥车',count:2},{name:'救护车',count:20},{name:'轻机枪',count:6}];
+  for (let c=0;c<2;c++){
+    const co = newNode('medical','company');
+    co.personnel = 80;
+    co.equipment = [{name:'救护车',count:10},{name:'轻机枪',count:3}];
+    bn.children.push(co);
+  }
+  return bn;
+}
+
+function makeHqCompany() {
+  const hq = newNode('hq','battalion');
+  hq.personnel = 120;
+  hq.equipment = [{name:'指挥车',count:8},{name:'运输卡车',count:12},{name:'轻机枪',count:20},{name:'重机枪',count:8}];
+  const guard = newNode('infantry','company');
+  guard.personnel = 120;
+  guard.equipment = [{name:'轻机枪',count:12},{name:'重机枪',count:6},{name:'迫击炮',count:4},{name:'装甲输送车',count:6}];
+  hq.children.push(guard);
+  return hq;
+}
+
+/* =========================================================
+   四套预设
+   ========================================================= */
+
+function makeRegiment(type, name, hqPersonnel, hqEquip, bnFactory, bnCount) {
+  const r = newNode(type, 'regiment', name);
+  r.personnel = 60;
+  r.equipment = [{name:'指挥车',count:3},{name:'轻机枪',count:8},{name:'重机枪',count:4}];
+  const hq = newNode('hq','battalion');
+  hq.personnel = hqPersonnel;
+  hq.equipment = hqEquip;
+  r.children.push(hq);
+  for (let i = 0; i < bnCount; i++) r.children.push(bnFactory());
+  return r;
+}
+
+/* 装甲师 */
+function buildArmorDivision() {
+  uid = 0;
+  const r = newNode('armor','division','第1装甲师');
+  r.personnel = 180;
+  r.equipment = [{name:'指挥车',count:8},{name:'运输卡车',count:20},{name:'轻机枪',count:30},{name:'重机枪',count:12}];
+
+  const artyReg = newNode('artillery','regiment','炮兵团');
+  artyReg.personnel = 60;
+  artyReg.equipment = [{name:'指挥车',count:4},{name:'轻机枪',count:12},{name:'重机枪',count:6}];
+  const artyHq = newNode('hq','battalion');
+  artyHq.personnel = 40;
+  artyHq.equipment = [{name:'指挥车',count:3},{name:'轻机枪',count:6}];
+  artyReg.children.push(artyHq,
+    makeArtyBattalion('spg'),
+    makeArtyBattalion('spg'),
+    makeArtyBattalion('mlrs')
+  );
+
+  r.children.push(
+    makeRegiment('armor','第1装甲团', 40, [{name:'指挥车',count:3},{name:'轻机枪',count:6}], makeArmorBattalion, 3),
+    makeRegiment('armor','第2装甲团', 40, [{name:'指挥车',count:3},{name:'轻机枪',count:6}], makeArmorBattalion, 3),
+    makeRegiment('mech','机步团', 40, [{name:'指挥车',count:3},{name:'轻机枪',count:6}], makeMechBattalion, 3),
+    artyReg,
+    makeAaaBattalion(),
+    makeAntiTankBattalion(),
+    makeReconBattalion(true),
+    makeEngineerBattalion(),
+    makeSignalBattalion(),
+    makeLogisticsBattalion(),
+    makeMedicalBattalion(),
+    makeHqCompany()
+  );
+
+  renumber(r, false);
+  forEachNode(r, n => { if (n !== r && n.children.length) n.collapsed = true; });
+  return r;
+}
+
+/* 步兵师 */
+function buildInfantryDivision() {
+  uid = 0;
+  const r = newNode('infantry','division','第1步兵师');
+  r.personnel = 180;
+  r.equipment = [{name:'指挥车',count:8},{name:'运输卡车',count:20},{name:'轻机枪',count:30},{name:'重机枪',count:12}];
+
+  r.children.push(
+    makeRegiment('infantry','第1步兵团', 40, [{name:'指挥车',count:3},{name:'轻机枪',count:6}], makeInfantryBattalion, 3),
+    makeRegiment('infantry','第2步兵团', 40, [{name:'指挥车',count:3},{name:'轻机枪',count:6}], makeInfantryBattalion, 3),
+    makeRegiment('infantry','第3步兵团', 40, [{name:'指挥车',count:3},{name:'轻机枪',count:6}], makeInfantryBattalion, 3),
+    makeRegiment('artillery','炮兵团', 40, [{name:'指挥车',count:3},{name:'轻机枪',count:6}],
+      () => makeArtyBattalion('spg'), 3),
+    makeAaaBattalion(),
+    makeAntiTankBattalion(),
+    makeReconBattalion(false),
+    makeEngineerBattalion(),
+    makeSignalBattalion(),
+    makeLogisticsBattalion(),
+    makeMedicalBattalion(),
+    makeHqCompany()
+  );
+
+  renumber(r, false);
+  forEachNode(r, n => { if (n !== r && n.children.length) n.collapsed = true; });
+  return r;
+}
+
+/* 机械化步兵师 */
+function buildMechDivision() {
+  uid = 0;
+  const r = newNode('mech','division','第1机械化步兵师');
+  r.personnel = 200;
+  r.equipment = [{name:'指挥车',count:10},{name:'运输卡车',count:24},{name:'轻机枪',count:34},{name:'重机枪',count:14}];
+
+  r.children.push(
+    makeRegiment('mech','第1机步团', 40, [{name:'指挥车',count:3},{name:'轻机枪',count:6}], makeMechBattalion, 3),
+    makeRegiment('mech','第2机步团', 40, [{name:'指挥车',count:3},{name:'轻机枪',count:6}], makeMechBattalion, 3),
+    makeRegiment('armor','装甲团', 50, [{name:'指挥车',count:3},{name:'轻机枪',count:6},{name:'重机枪',count:4}], makeArmorBattalion, 3),
+    makeRegiment('artillery','炮兵团', 40, [{name:'指挥车',count:3},{name:'轻机枪',count:6}],
+      () => makeArtyBattalion('spg'), 3),
+    makeAaaBattalion(),
+    makeAntiTankBattalion(),
+    makeReconBattalion(true),
+    makeEngineerBattalion(),
+    makeSignalBattalion(),
+    makeLogisticsBattalion(),
+    makeMedicalBattalion(),
+    makeHqCompany()
+  );
+
+  renumber(r, false);
+  forEachNode(r, n => { if (n !== r && n.children.length) n.collapsed = true; });
+  return r;
+}
+
+/* 空降师 */
+function buildAirborneDivision() {
+  uid = 0;
+  const r = newNode('airborne','division','第1空降师');
+  r.personnel = 150;
+  r.equipment = [{name:'指挥车',count:6},{name:'运输卡车',count:16},{name:'轻机枪',count:30},{name:'重机枪',count:10}];
+
+  r.children.push(
+    makeRegiment('airborne','第1空降团', 35, [{name:'指挥车',count:2},{name:'轻机枪',count:6}], makeAirborneBattalion, 3),
+    makeRegiment('airborne','第2空降团', 35, [{name:'指挥车',count:2},{name:'轻机枪',count:6}], makeAirborneBattalion, 3),
+    makeRegiment('airborne','第3空降团', 35, [{name:'指挥车',count:2},{name:'轻机枪',count:6}], makeAirborneBattalion, 3),
+    makeRegiment('artillery','空降炮兵团', 30, [{name:'指挥车',count:2},{name:'轻机枪',count:6}],
+      () => makeArtyBattalion('light'), 3),
+    makeAaaBattalion(),
+    makeAntiTankBattalion(),
+    makeReconBattalion(false),
+    makeEngineerBattalion(),
+    makeSignalBattalion(),
+    makeLogisticsBattalion(),
+    makeMedicalBattalion(),
+    makeHqCompany()
+  );
+
+  renumber(r, false);
+  forEachNode(r, n => { if (n !== r && n.children.length) n.collapsed = true; });
+  return r;
+}
+
+const PRESETS = {
+  armor:    buildArmorDivision,
+  infantry: buildInfantryDivision,
+  mech:     buildMechDivision,
+  airborne: buildAirborneDivision,
+};
+
+/* =========================================================
+   统计
+   ========================================================= */
+
+function computeStats(node) {
+  let personnel = node.personnel || 0;
+  const equipment = {};
+  for (const e of (node.equipment || [])) equipment[e.name] = (equipment[e.name] || 0) + (e.count || 0);
+  for (const c of node.children) {
+    const sub = computeStats(c);
+    personnel += sub.personnel;
+    for (const [k,v] of Object.entries(sub.equipment)) equipment[k] = (equipment[k] || 0) + v;
+  }
+  return { personnel, equipment };
+}
+
+const statsEl = document.getElementById('stats');
+
+function renderEquipStats(equipment) {
+  const keys = Object.keys(equipment).filter(k => equipment[k] > 0).sort();
+  if (!keys.length) return '<div class="stats-empty">无装备</div>';
+  return `<div class="stats-equip">${
+    keys.map(k => `<div class="stats-equip-item"><span>${escapeHtml(k)}</span><span>×${equipment[k]}</span></div>`).join('')
+  }</div>`;
+}
+
+function renderStats() {
+  let html = '';
+  if (selectedId && nodeById[selectedId]) {
+    const node = nodeById[selectedId];
+    const local = computeStats(node);
+    html += `<div class="stats-block highlight">
+      <div class="stats-title">选中：${escapeHtml(node.name)}（含下属）</div>
+      <div class="stats-row personnel"><span>人数</span><b>${local.personnel.toLocaleString()}</b></div>
+      ${renderEquipStats(local.equipment)}
+    </div>`;
+  }
+  if (root) {
+    const global = computeStats(root);
+    html += `<div class="stats-block">
+      <div class="stats-title">全军总计</div>
+      <div class="stats-row personnel"><span>人数</span><b>${global.personnel.toLocaleString()}</b></div>
+      ${renderEquipStats(global.equipment)}
+    </div>`;
+  }
+  statsEl.innerHTML = html || '<div class="empty-tip">暂无数据</div>';
+}
+
+/* =========================================================
+   渲染
+   ========================================================= */
+
+const wrapEl   = document.getElementById('wrap');
+const canvasEl = document.getElementById('canvas');
+const svgEl    = document.getElementById('links');
+const nodesEl  = document.getElementById('nodes');
+const NODE_W = 120, NODE_H = 116, HGAP = 18, VGAP = 48;
+const PAD_X = 44, PAD_Y = 44;
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+function render() {
+  let cursor = 0;
+  (function walk(n, depth) {
+    n.depth = depth;
+    n.y = depth * (NODE_H + VGAP);
+    const visible = n.collapsed ? [] : n.children;
+    if (visible.length === 0) {
+      n.cx = cursor + NODE_W/2;
+      cursor += NODE_W + HGAP;
+    } else {
+      for (const c of visible) walk(c, depth+1);
+      n.cx = (visible[0].cx + visible[visible.length-1].cx)/2;
+    }
+  })(root, 0);
+
+  let minX = Infinity, maxX = -Infinity, maxY = 0;
+  forEachVisibleNode(root, n => {
+    minX = Math.min(minX, n.cx - NODE_W/2);
+    maxX = Math.max(maxX, n.cx + NODE_W/2);
+    maxY = Math.max(maxY, n.y + NODE_H);
+  });
+
+  const contentW = maxX - minX;
+  const wrapW = wrapEl.clientWidth;
+  const offsetX = Math.max(PAD_X, (wrapW - contentW)/2);
+  const X = n => n.cx - minX + offsetX;
+  const Y = n => n.y + PAD_Y;
+
+  const canvasW = Math.max(contentW + PAD_X*2, wrapW);
+  const canvasH = Math.max(maxY + PAD_Y*2, wrapEl.clientHeight);
+  canvasEl.style.width = canvasW + 'px';
+  canvasEl.style.height = canvasH + 'px';
+  svgEl.setAttribute('width', canvasW);
+  svgEl.setAttribute('height', canvasH);
+  svgEl.setAttribute('viewBox', `0 0 ${canvasW} ${canvasH}`);
+
+  const linkColor = getComputedStyle(document.documentElement).getPropertyValue('--link-color').trim() || '#9db4d4';
+  let d = '';
+  forEachVisibleNode(root, n => {
+    if (n.collapsed || !n.children.length) return;
+    const px = X(n), pyB = Y(n) + NODE_H, midY = pyB + VGAP/2;
+    const first = n.children[0], last = n.children[n.children.length-1];
+    d += `M${px} ${pyB} L${px} ${midY} `;
+    d += `M${X(first)} ${midY} L${X(last)} ${midY} `;
+    for (const c of n.children) d += `M${X(c)} ${midY} L${X(c)} ${Y(c)} `;
+  });
+  svgEl.innerHTML = `<path d="${d}" fill="none" stroke="${linkColor}" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"/>`;
+
+  nodeById = {};
+  forEachNode(root, n => nodeById[n.id] = n);
+
+  const frag = document.createDocumentFragment();
+  forEachVisibleNode(root, n => {
+    const el = document.createElement('div');
+    el.className = 'node' + (n.id === selectedId ? ' selected' : '');
+    el.dataset.id = n.id;
+    el.style.left = X(n) + 'px';
+    el.style.top = Y(n) + 'px';
+
+    const local = computeStats(n);
+    const equipTotal = Object.values(local.equipment).reduce((a,b)=>a+b,0);
+    const showP = local.personnel > 0, showE = equipTotal > 0;
+    let badgeText = '';
+    if (showP && showE) badgeText = `👤${local.personnel} 🔧${equipTotal}`;
+    else if (showP) badgeText = `👤${local.personnel}`;
+    else if (showE) badgeText = `🔧${equipTotal}`;
+
+    const hasCh = n.children.length > 0;
+    const cBtn = hasCh ? `<div class="collapse-btn${n.collapsed ? ' collapsed' : ''}" data-action="toggle" title="${n.collapsed ? '展开下属' : '折叠下属'}">${n.collapsed ? '+' : '−'}</div>` : '';
+    const rIcon = n.remark ? `<div class="remark-icon" title="${escapeHtml(n.remark)}">📝</div>` : '';
+
+    el.innerHTML =
+      `<div class="sym">${buildSymbol(n.type, n.echelon)}</div>` +
+      `<div class="label">${escapeHtml(n.name)}</div>` +
+      (badgeText ? `<div class="badge">${badgeText}</div>` : '') +
+      rIcon + cBtn;
+
+    el.addEventListener('pointerdown', e => startDrag(e, n, el));
+    el.addEventListener('dblclick', e => {
+      if (e.target.closest('.collapse-btn')) return;
+      renameNode(n);
+    });
+
+    const btn = el.querySelector('.collapse-btn');
+    if (btn) {
+      btn.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); });
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        n.collapsed = !n.collapsed;
+        render();
+        if (n.id === selectedId) fillPanel(n);
+      });
+    }
+    frag.appendChild(el);
+  });
+  nodesEl.innerHTML = '';
+  nodesEl.appendChild(frag);
+}
+
+function updateNodeLabel(n) {
+  const el = nodesEl.querySelector(`.node[data-id="${n.id}"] .label`);
+  if (el) el.textContent = n.name;
+}
+
+/* =========================================================
+   拖拽
+   ========================================================= */
+
+let dropInfo = null;
+const libEl = document.querySelector('aside.lib');
+
+function isOverLib(x, y) {
+  const r = libEl.getBoundingClientRect();
+  return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+}
+
+function startDrag(e, node, el) {
+  if (e.button !== 0) return;
+  const draggable = node !== root;
+  const startX = e.clientX, startY = e.clientY;
+  let ghost = null, started = false;
+
+  const onMove = ev => {
+    if (!draggable) return;
+    const dx = ev.clientX - startX, dy = ev.clientY - startY;
+    if (!started && Math.hypot(dx, dy) > 6) {
+      started = true;
+      el.classList.add('dragging');
+      ghost = el.cloneNode(true);
+      ghost.classList.add('ghost');
+      ghost.classList.remove('selected', 'dragging');
+      ghost.querySelectorAll('.collapse-btn, .badge, .remark-icon').forEach(b => b.remove());
+      document.body.appendChild(ghost);
+    }
+    if (!started) return;
+    ghost.style.left = (ev.clientX - NODE_W/2) + 'px';
+    ghost.style.top  = (ev.clientY - NODE_H/2) + 'px';
+
+    if (isOverLib(ev.clientX, ev.clientY)) {
+      libEl.classList.add('drag-over-delete');
+      clearDropClasses();
+      dropInfo = null;
+    } else {
+      libEl.classList.remove('drag-over-delete');
+      updateDropTarget(ev.clientX, ev.clientY, node);
+    }
+  };
+
+  const onUp = ev => {
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    if (ghost) ghost.remove();
+    el.classList.remove('dragging');
+    clearDropClasses();
+    libEl.classList.remove('drag-over-delete');
+
+    if (!started) {
+      selectNode(node);
+    } else if (ev && isOverLib(ev.clientX, ev.clientY) && node !== root) {
+      const p = findParent(node);
+      if (p) {
+        p.children.splice(p.children.indexOf(node), 1);
+        if (selectedId === node.id) selectedId = null;
+        renumber(root, false);
+        render();
+        if (!selectedId) emptyPanel();
+        renderStats();
+        toast('已删除：' + node.name);
+      }
+    } else if (dropInfo) {
+      performDrop(node, dropInfo.node, dropInfo.mode);
+    }
+    dropInfo = null;
+  };
+
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
+}
+
+function updateDropTarget(x, y, draggedNode) {
+  clearDropClasses(); dropInfo = null;
+  const hit = document.elementFromPoint(x, y);
+  const targetEl = hit ? hit.closest('.node') : null;
+  if (!targetEl) return;
+  const target = nodeById[targetEl.dataset.id];
+  if (!target) return;
+  if (draggedNode && (target === draggedNode || isInSubtree(target, draggedNode))) return;
+  const r = targetEl.getBoundingClientRect();
+  const rel = (y - r.top) / r.height;
+  let mode;
+  if (rel < 0.3) mode = 'before';
+  else if (rel > 0.7) mode = 'after';
+  else mode = 'child';
+  if (target === root) mode = 'child';
+  targetEl.classList.add('drop-' + mode);
+  dropInfo = { node: target, mode };
+}
+
+function clearDropClasses() {
+  nodesEl.querySelectorAll('.drop-before, .drop-after, .drop-child')
+    .forEach(el => el.classList.remove('drop-before','drop-after','drop-child'));
+}
+
+function insertUnitAt(unit, target, mode) {
+  if (mode === 'child') {
+    target.children.push(unit);
+    target.collapsed = false;
+  } else {
+    const tp = findParent(target);
+    if (!tp) target.children.push(unit);
+    else {
+      const i = tp.children.indexOf(target);
+      tp.children.splice(mode === 'before' ? i : i+1, 0, unit);
+    }
+  }
+  renumber(root, false);
+  render();
+  selectNode(unit);
+}
+
+function performDrop(node, target, mode) {
+  const parent = findParent(node);
+  if (!parent) return;
+  parent.children.splice(parent.children.indexOf(node), 1);
+  insertUnitAt(node, target, mode);
+}
+
+/* =========================================================
+   兵牌库
+   ========================================================= */
+
+const libGrid = document.getElementById('lib-grid');
+const libEchelonSel = document.getElementById('lib-echelon');
+
+ECHELON_ORDER.forEach(k => {
+  const o = document.createElement('option');
+  o.value = k;
+  o.textContent = ECHELONS[k].name;
+  libEchelonSel.appendChild(o);
+});
+libEchelonSel.value = 'battalion';
+
+Object.keys(TYPES).forEach(type => {
+  const item = document.createElement('div');
+  item.className = 'lib-item';
+  item.dataset.type = type;
+  item.innerHTML = `<div class="sym">${buildSymbol(type, libEchelonSel.value)}</div><span>${TYPES[type].name}</span>`;
+  item.addEventListener('pointerdown', e => startLibraryDrag(e, type, item));
+  item.addEventListener('click', () => {
+    if (item.dataset.dragged === '1') { item.dataset.dragged = ''; return; }
+    quickAdd(type);
+  });
+  libGrid.appendChild(item);
+});
+
+libEchelonSel.addEventListener('change', () => {
+  libGrid.querySelectorAll('.lib-item').forEach(item => {
+    const t = item.dataset.type;
+    item.querySelector('.sym').innerHTML = buildSymbol(t, libEchelonSel.value);
+  });
+});
+
+function startLibraryDrag(e, type, item) {
+  if (e.button !== 0) return;
+  const echelon = libEchelonSel.value;
+  const preview = `${TYPES[type].name}${ECHELONS[echelon].name}`;
+  const startX = e.clientX, startY = e.clientY;
+  let ghost = null, started = false;
+
+  const onMove = ev => {
+    if (!started && Math.hypot(ev.clientX - startX, ev.clientY - startY) > 6) {
+      started = true;
+      ghost = document.createElement('div');
+      ghost.className = 'node ghost';
+      ghost.innerHTML = `<div class="sym">${buildSymbol(type, echelon)}</div><div class="label">${escapeHtml(preview)}</div>`;
+      document.body.appendChild(ghost);
+    }
+    if (!started) return;
+    ghost.style.left = (ev.clientX - NODE_W/2) + 'px';
+    ghost.style.top  = (ev.clientY - NODE_H/2) + 'px';
+    updateDropTarget(ev.clientX, ev.clientY, null);
+  };
+
+  const onUp = ev => {
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    if (ghost) ghost.remove();
+    clearDropClasses();
+    if (started) {
+      item.dataset.dragged = '1';
+      if (dropInfo) {
+        const unit = newNode(type, echelon);
+        insertUnitAt(unit, dropInfo.node, dropInfo.mode);
+      } else {
+        const el = document.elementFromPoint(ev.clientX, ev.clientY);
+        if (el && wrapEl.contains(el)) {
+          const unit = newNode(type, echelon);
+          root.children.push(unit);
+          root.collapsed = false;
+          renumber(root, false);
+          render();
+          selectNode(unit);
+        }
+      }
+    }
+    dropInfo = null;
+  };
+
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
+}
+
+function quickAdd(type) {
+  const unit = newNode(type, libEchelonSel.value);
+  const parent = (selectedId && nodeById[selectedId]) ? nodeById[selectedId] : root;
+  parent.children.push(unit);
+  if (parent.collapsed) parent.collapsed = false;
+  renumber(root, false);
+  render();
+  selectNode(unit);
+}
+
+/* =========================================================
+   侧栏
+   ========================================================= */
+
+const panelEl = document.getElementById('panel');
+
+function selectNode(node) {
+  selectedId = node.id;
+  render();
+  fillPanel(node);
+  renderStats();
+  const el = nodesEl.querySelector(`.node[data-id="${node.id}"]`);
+  if (el && el.scrollIntoView) el.scrollIntoView({ block:'nearest', inline:'nearest' });
+}
+
+function fillPanel(node) {
+  const typeOpts = Object.keys(TYPES).map(k => `<option value="${k}"${k===node.type?' selected':''}>${TYPES[k].name}</option>`).join('');
+  const echOpts = ECHELON_ORDER.map(k => `<option value="${k}"${k===node.echelon?' selected':''}>${ECHELONS[k].name}</option>`).join('');
+  const hasCh = node.children.length > 0;
+  const cBtn = hasCh ? `<button id="btn-toggle-collapse" class="${node.collapsed?'warn':''}">${node.collapsed?'＋ 展开下属':'－ 折叠下属'}</button>` : '';
+
+  const parent = findParent(node);
+  let siblingCount = 0;
+  if (parent) {
+    siblingCount = parent.children.filter(c => c !== node && c.type === node.type && c.echelon === node.echelon).length;
+  }
+  const syncBtn = siblingCount > 0
+    ? `<button id="btn-sync" class="sync">⇄ 同步到 ${siblingCount} 个同级同类单位</button>`
+    : '';
+
+  panelEl.innerHTML = `
+    <div class="field">
+      <label>部队番号</label>
+      <input id="f-name" type="text" value="${escapeHtml(node.name)}" placeholder="输入番号">
+    </div>
+    <div class="field">
+      <label>兵种</label>
+      <select id="f-type">${typeOpts}</select>
+    </div>
+    <div class="field">
+      <label>编制层级</label>
+      <select id="f-echelon">${echOpts}</select>
+    </div>
+    <div class="field">
+      <label>备注</label>
+      <textarea id="f-remark" placeholder="添加备注...">${escapeHtml(node.remark || '')}</textarea>
+    </div>
+    <div class="field">
+      <label>本级人数</label>
+      <input id="f-personnel" type="number" min="0" step="1" value="${node.personnel || 0}" placeholder="0">
+    </div>
+    <div class="field">
+      <label>本级装备</label>
+      <div id="equip-list" class="equip-list"></div>
+      <div class="equip-add">
+        <input id="equip-name" type="text" placeholder="装备名称">
+        <input id="equip-count" type="number" min="1" step="1" placeholder="数量">
+        <button id="equip-add-btn" type="button" title="添加装备">＋</button>
+      </div>
+    </div>
+    <div class="btns">
+      <button id="btn-add" class="primary">＋ 添加下属单位</button>
+      ${syncBtn}
+      ${cBtn}
+      <button id="btn-del" class="danger"${node === root ? ' disabled style="opacity:.4;cursor:not-allowed"' : ''}>删除该单位</button>
+    </div>
+    <div class="legend">
+      <b>快捷键</b><br>
+      <span class="k">Space</span>折叠 / 展开选中单位<br>
+      <span class="k">Del</span>删除选中单位<br>
+      <span class="k">N</span>新建下属单位<br>
+      <span class="k">↵</span>重命名选中单位<br>
+      <span class="k">Esc</span>取消选中<br>
+      <span class="k">Tab</span>下一个 / <span class="k">⇧Tab</span> 上一个<br>
+      <span class="k">←→</span>同级切换 &nbsp; <span class="k">↑</span>上级 &nbsp; <span class="k">↓</span>下级<br>
+      <span class="k">Ctrl+R</span>自动重新编号
+    </div>
+  `;
+
+  const nameInput = document.getElementById('f-name');
+  const typeSel   = document.getElementById('f-type');
+  const echSel    = document.getElementById('f-echelon');
+  const remarkIn  = document.getElementById('f-remark');
+  const persInput = document.getElementById('f-personnel');
+
+  nameInput.addEventListener('input', e => {
+    node.name = e.target.value;
+    node.customName = true;
+    updateNodeLabel(node);
+    renderStats();
+  });
+  typeSel.addEventListener('change', e => {
+    node.type = e.target.value;
+    renumber(root, false);
+    render(); fillPanel(node); renderStats();
+  });
+  echSel.addEventListener('change', e => {
+    node.echelon = e.target.value;
+    renumber(root, false);
+    render(); fillPanel(node); renderStats();
+  });
+  remarkIn.addEventListener('input', e => {
+    node.remark = e.target.value;
+    const el = nodesEl.querySelector(`.node[data-id="${node.id}"]`);
+    if (el) {
+      let icon = el.querySelector('.remark-icon');
+      if (node.remark) {
+        if (!icon) {
+          icon = document.createElement('div');
+          icon.className = 'remark-icon';
+          icon.textContent = '📝';
+          el.appendChild(icon);
+        }
+        icon.title = node.remark;
+      } else if (icon) {
+        icon.remove();
+      }
+    }
+  });
+  persInput.addEventListener('input', e => {
+    node.personnel = Math.max(0, parseInt(e.target.value, 10) || 0);
+    refreshNodeBadges();
+    renderStats();
+  });
+
+  renderEquipEditor(node);
+
+  document.getElementById('equip-add-btn').addEventListener('click', () => {
+    const nameInp = document.getElementById('equip-name');
+    const countInp = document.getElementById('equip-count');
+    const name = nameInp.value.trim();
+    const count = parseInt(countInp.value, 10) || 0;
+    if (!name || count <= 0) { countInp.focus(); return; }
+    if (!node.equipment) node.equipment = [];
+    const existing = node.equipment.find(e => e.name === name);
+    if (existing) existing.count += count;
+    else node.equipment.push({ name, count });
+    nameInp.value = ''; countInp.value = ''; nameInp.focus();
+    renderEquipEditor(node);
+    refreshNodeBadges();
+    renderStats();
+  });
+
+  ['equip-name', 'equip-count'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); document.getElementById('equip-add-btn').click(); }
+    });
+  });
+
+  document.getElementById('btn-add').addEventListener('click', () => addChild(node));
+
+  const syncEl = document.getElementById('btn-sync');
+  if (syncEl) syncEl.addEventListener('click', () => syncToSiblings(node));
+
+  const toggleBtn = document.getElementById('btn-toggle-collapse');
+  if (toggleBtn) toggleBtn.addEventListener('click', () => {
+    node.collapsed = !node.collapsed;
+    render(); fillPanel(node);
+  });
+
+  const delBtn = document.getElementById('btn-del');
+  if (node !== root) delBtn.addEventListener('click', () => deleteNode(node));
+}
+
+function syncToSiblings(node) {
+  const parent = findParent(node);
+  if (!parent) { toast('根节点无法同步', true); return; }
+  const siblings = parent.children.filter(c =>
+    c !== node && c.type === node.type && c.echelon === node.echelon
+  );
+  if (!siblings.length) { toast('未找到同级同类单位', true); return; }
+
+  const msg = `将当前单位的人数与装备同步到 ${siblings.length} 个同级同类单位？\n\n` +
+              `兵种：${TYPES[node.type].name}\n` +
+              `层级：${ECHELONS[node.echelon].name}\n` +
+              `人数：${node.personnel}\n` +
+              `装备：${(node.equipment || []).length} 类`;
+  if (!confirm(msg)) return;
+
+  for (const s of siblings) {
+    s.personnel = node.personnel;
+    s.equipment = JSON.parse(JSON.stringify(node.equipment || []));
+  }
+  render();
+  if (selectedId && nodeById[selectedId]) fillPanel(nodeById[selectedId]);
+  renderStats();
+  toast(`已同步到 ${siblings.length} 个同级同类单位`);
+}
+
+function renderEquipEditor(node) {
+  const list = document.getElementById('equip-list');
+  if (!list) return;
+  const eqs = node.equipment || [];
+  if (!eqs.length) { list.innerHTML = '<div class="stats-empty">尚未添加装备</div>'; return; }
+  list.innerHTML = eqs.map((e, i) => `
+    <div class="equip-item">
+      <span class="name" title="${escapeHtml(e.name)}">${escapeHtml(e.name)}</span>
+      <input type="number" min="0" step="1" value="${e.count}" data-idx="${i}" class="equip-count-input">
+      <button class="del" data-idx="${i}" title="删除">✕</button>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.equip-count-input').forEach(inp => {
+    inp.addEventListener('input', ev => {
+      const idx = parseInt(ev.target.dataset.idx, 10);
+      node.equipment[idx].count = Math.max(0, parseInt(ev.target.value, 10) || 0);
+      refreshNodeBadges(); renderStats();
+    });
+  });
+  list.querySelectorAll('.del').forEach(btn => {
+    btn.addEventListener('click', ev => {
+      const idx = parseInt(ev.target.dataset.idx, 10);
+      node.equipment.splice(idx, 1);
+      renderEquipEditor(node); refreshNodeBadges(); renderStats();
+    });
+  });
+}
+
+function refreshNodeBadges() {
+  forEachVisibleNode(root, n => {
+    const el = nodesEl.querySelector(`.node[data-id="${n.id}"]`);
+    if (!el) return;
+    const local = computeStats(n);
+    const equipTotal = Object.values(local.equipment).reduce((a,b)=>a+b,0);
+    const showP = local.personnel > 0, showE = equipTotal > 0;
+    el.querySelectorAll('.badge').forEach(b => b.remove());
+    let text = '';
+    if (showP && showE) text = `👤${local.personnel} 🔧${equipTotal}`;
+    else if (showP) text = `👤${local.personnel}`;
+    else if (showE) text = `🔧${equipTotal}`;
+    if (text) {
+      const b = document.createElement('div');
+      b.className = 'badge';
+      b.textContent = text;
+      el.appendChild(b);
+    }
+  });
+}
+
+function emptyPanel() {
+  panelEl.innerHTML = `<div class="empty-tip">
+    点击任意兵牌查看 / 编辑其属性。<br><br>
+    从左侧<b>兵牌库</b>拖动单位到树中即可新增编制；<br>
+    拖动已有兵牌到其他单位上可调整归属。<br><br>
+    节点右上角 <b>−/+</b> 按钮可折叠下属部队<br>
+    有备注的节点右下角会显示 📝 图标<br>
+    <b>同步按钮</b>可将人数装备复制到同级同类单位<br>
+    将单位<b>拖到左侧兵牌库</b>即可快速删除
+  </div>`;
+}
+
+function addChild(node) {
+  const idx = ECHELON_ORDER.indexOf(node.echelon);
+  const childEchelon = ECHELON_ORDER[Math.min(idx+1, ECHELON_ORDER.length-1)];
+  const child = newNode(node.type, childEchelon);
+  node.children.push(child);
+  if (node.collapsed) node.collapsed = false;
+  renumber(root, false);
+  render();
+  selectNode(child);
+}
+
+function deleteNode(node) {
+  const p = findParent(node);
+  if (!p) return;
+  p.children.splice(p.children.indexOf(node), 1);
+  renumber(root, false);
+  selectedId = null;
+  render(); emptyPanel(); renderStats();
+}
+
+function renameNode(node) {
+  const v = prompt('输入部队番号：', node.name);
+  if (v !== null && v.trim()) {
+    node.name = v.trim();
+    node.customName = true;
+    updateNodeLabel(node);
+    if (node.id === selectedId) { fillPanel(node); renderStats(); }
+  }
+}
+
+/* =========================================================
+   保存 / 加载
+   ========================================================= */
+
+const STORAGE_KEY = 'mil_org_saves_v1';
+
+function getSaves() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }
+  catch (e) { return {}; }
+}
+function setSaves(saves) { localStorage.setItem(STORAGE_KEY, JSON.stringify(saves)); }
+
+function serializeOrg(node) {
+  const { id, ...rest } = node;
+  return { ...rest, children: node.children.map(serializeOrg) };
+}
+function deserializeOrg(data) {
+  const n = newNode(data.type, data.echelon, data.name);
+  n.customName = !!data.customName;
+  n.remark = data.remark || '';
+  n.collapsed = !!data.collapsed;
+  n.personnel = data.personnel || 0;
+  n.equipment = JSON.parse(JSON.stringify(data.equipment || []));
+  n.children = (data.children || []).map(deserializeOrg);
+  return n;
+}
+
+const saveModal = document.getElementById('save-modal');
+const saveNameInput = document.getElementById('save-name-input');
+document.getElementById('btn-save').addEventListener('click', () => {
+  saveNameInput.value = root.name + ' ' + new Date().toLocaleDateString();
+  saveModal.classList.add('show');
+  setTimeout(() => saveNameInput.select(), 50);
+});
+document.getElementById('save-cancel').addEventListener('click', () => saveModal.classList.remove('show'));
+document.getElementById('save-confirm').addEventListener('click', () => {
+  const name = saveNameInput.value.trim();
+  if (!name) { saveNameInput.focus(); return; }
+  const saves = getSaves();
+  const global = computeStats(root);
+  saves[name] = {
+    data: serializeOrg(root),
+    time: Date.now(),
+    personnel: global.personnel,
+    equipTotal: Object.values(global.equipment).reduce((a,b)=>a+b,0),
+  };
+  try {
+    setSaves(saves);
+    saveModal.classList.remove('show');
+    toast('已保存：' + name);
+  } catch (e) {
+    alert('保存失败：' + e.message);
+  }
+});
+saveNameInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('save-confirm').click();
+  if (e.key === 'Escape') saveModal.classList.remove('show');
+});
+
+const loadModal = document.getElementById('load-modal');
+const loadList = document.getElementById('load-list');
+document.getElementById('btn-load').addEventListener('click', () => {
+  refreshLoadList();
+  loadModal.classList.add('show');
+});
+document.getElementById('load-cancel').addEventListener('click', () => loadModal.classList.remove('show'));
+
+function refreshLoadList() {
+  const saves = getSaves();
+  const keys = Object.keys(saves).sort((a,b) => (saves[b].time||0) - (saves[a].time||0));
+  if (!keys.length) {
+    loadList.innerHTML = '<div class="modal-empty">还没有任何存档</div>';
+    return;
+  }
+  loadList.innerHTML = keys.map(k => {
+    const s = saves[k];
+    const date = new Date(s.time || Date.now());
+    const meta = `${date.toLocaleString('zh-CN')} · 👤${(s.personnel||0).toLocaleString()} · 🔧${(s.equipTotal||0).toLocaleString()}`;
+    return `<div class="modal-item" data-key="${escapeHtml(k)}">
+      <div class="info">
+        <div class="name">${escapeHtml(k)}</div>
+        <div class="meta">${meta}</div>
+      </div>
+      <button class="del-btn" data-del="${escapeHtml(k)}" title="删除存档">✕</button>
+    </div>`;
+  }).join('');
+
+  loadList.querySelectorAll('.modal-item').forEach(item => {
+    item.addEventListener('click', ev => {
+      if (ev.target.closest('.del-btn')) return;
+      const key = item.dataset.key;
+      const s = getSaves()[key];
+      if (!s) return;
+      if (!confirm(`加载存档「${key}」？当前编制将被替换。`)) return;
+      try {
+        root = deserializeOrg(s.data);
+        uid = 0;
+        forEachNode(root, n => {
+          const num = parseInt(n.id.slice(1), 10);
+          if (num > uid) uid = num;
+        });
+        selectedId = null;
+        render(); emptyPanel(); renderStats();
+        loadModal.classList.remove('show');
+        toast('已加载：' + key);
+      } catch (e) {
+        alert('加载失败：' + e.message);
+      }
+    });
+  });
+  loadList.querySelectorAll('.del-btn').forEach(btn => {
+    btn.addEventListener('click', ev => {
+      ev.stopPropagation();
+      const key = btn.dataset.del;
+      if (!confirm(`删除存档「${key}」？`)) return;
+      const saves = getSaves();
+      delete saves[key];
+      setSaves(saves);
+      refreshLoadList();
+    });
+  });
+}
+
+function toast(msg, isErr) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = `position:fixed;bottom:60px;left:50%;transform:translateX(-50%);
+    background:${isErr ? '#dc2626' : '#16a34a'};color:#fff;padding:8px 18px;border-radius:8px;
+    font-size:13px;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,.25);
+    opacity:0;transition:opacity .2s;`;
+  document.body.appendChild(t);
+  requestAnimationFrame(() => t.style.opacity = '1');
+  setTimeout(() => {
+    t.style.opacity = '0';
+    setTimeout(() => t.remove(), 250);
+  }, 1600);
+}
+
+/* =========================================================
+   预设弹窗
+   ========================================================= */
+
+const presetModal = document.getElementById('preset-modal');
+document.getElementById('btn-preset').addEventListener('click', () => presetModal.classList.add('show'));
+document.getElementById('preset-cancel').addEventListener('click', () => presetModal.classList.remove('show'));
+
+document.querySelectorAll('.preset-item').forEach(item => {
+  item.addEventListener('click', () => {
+    const key = item.dataset.preset;
+    const builder = PRESETS[key];
+    if (!builder) return;
+    if (!confirm('加载预设将替换当前编制，确定继续？')) return;
+    root = builder();
+    selectedId = null;
+    render(); emptyPanel(); renderStats();
+    presetModal.classList.remove('show');
+    toast('已加载预设');
+  });
+});
+
+/* =========================================================
+   更新日志弹窗
+   ========================================================= */
+
+const changelogModal = document.getElementById('changelog-modal');
+document.getElementById('btn-changelog').addEventListener('click', () => changelogModal.classList.add('show'));
+document.getElementById('changelog-close').addEventListener('click', () => changelogModal.classList.remove('show'));
+
+/* =========================================================
+   快捷键
+   ========================================================= */
+
+document.addEventListener('keydown', e => {
+  const tag = (e.target.tagName || '').toLowerCase();
+  const isForm = tag === 'input' || tag === 'textarea' || tag === 'select';
+  if (isForm) {
+    if (e.key === 'Escape') e.target.blur();
+    return;
+  }
+  if (saveModal.classList.contains('show') ||
+      loadModal.classList.contains('show') ||
+      presetModal.classList.contains('show') ||
+      changelogModal.classList.contains('show')) return;
+
+  const sel = selectedId ? nodeById[selectedId] : null;
+
+  if (e.key === ' ' || e.code === 'Space') {
+    if (sel && sel.children.length) {
+      e.preventDefault();
+      sel.collapsed = !sel.collapsed;
+      render(); fillPanel(sel);
+    }
+    return;
+  }
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (sel && sel !== root) { e.preventDefault(); deleteNode(sel); }
+    return;
+  }
+  if ((e.key === 'n' || e.key === 'N') && !e.ctrlKey && !e.metaKey) {
+    if (sel) { e.preventDefault(); addChild(sel); }
+    return;
+  }
+  if (e.key === 'Enter') {
+    if (sel) { e.preventDefault(); renameNode(sel); }
+    return;
+  }
+  if (e.key === 'Escape') {
+    if (selectedId) { selectedId = null; render(); emptyPanel(); renderStats(); }
+    return;
+  }
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const all = [];
+    forEachVisibleNode(root, n => all.push(n));
+    if (!all.length) return;
+    let idx = all.findIndex(n => n.id === selectedId);
+    if (e.shiftKey) idx = (idx <= 0) ? all.length-1 : idx-1;
+    else idx = (idx + 1) % all.length;
+    selectNode(all[idx]);
+    return;
+  }
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
+    e.preventDefault();
+    if (!sel) { selectNode(root); return; }
+    const parent = findParent(sel);
+    let target = null;
+    if (e.key === 'ArrowDown') {
+      if (!sel.collapsed && sel.children.length) target = sel.children[0];
+      else if (sel.collapsed && sel.children.length) { sel.collapsed = false; render(); fillPanel(sel); return; }
+    } else if (e.key === 'ArrowUp') {
+      if (parent) target = parent;
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      if (parent) {
+        const i = parent.children.indexOf(sel);
+        if (e.key === 'ArrowLeft' && i > 0) target = parent.children[i-1];
+        if (e.key === 'ArrowRight' && i < parent.children.length-1) target = parent.children[i+1];
+      }
+    }
+    if (target) selectNode(target);
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R')) {
+    e.preventDefault();
+    renumber(root, true);
+    render();
+    if (sel) { fillPanel(nodeById[sel.id] || root); renderStats(); }
+    return;
+  }
+});
+
+/* =========================================================
+   顶栏操作
+   ========================================================= */
+
+document.getElementById('btn-renumber').addEventListener('click', () => {
+  renumber(root, true);
+  render();
+  if (selectedId && nodeById[selectedId]) fillPanel(nodeById[selectedId]);
+  renderStats();
+});
+document.getElementById('btn-collapse-all').addEventListener('click', () => {
+  forEachNode(root, n => { if (n.children.length) n.collapsed = true; });
+  root.collapsed = false;
+  render();
+  if (selectedId && nodeById[selectedId]) fillPanel(nodeById[selectedId]);
+});
+document.getElementById('btn-expand-all').addEventListener('click', () => {
+  forEachNode(root, n => { n.collapsed = false; });
+  render();
+  if (selectedId && nodeById[selectedId]) fillPanel(nodeById[selectedId]);
+});
+const btnTheme = document.getElementById('btn-theme');
+btnTheme.addEventListener('click', () => {
+  const isDark = document.body.classList.toggle('dark');
+  btnTheme.textContent = isDark ? '☀ 正常' : '🌙 暗黑';
+  render();
+});
+
+/* =========================================================
+   启动
+   ========================================================= */
+
+root = buildArmorDivision();
+render(); emptyPanel(); renderStats();
+window.addEventListener('resize', () => render());
+</script>
+</body>
+</html>
