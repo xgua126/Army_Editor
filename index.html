@@ -828,6 +828,18 @@
   </div>
 </div>
 
+<div class="modal-mask" id="sync-modal">
+  <div class="modal" style="min-width:420px;max-width:92vw;">
+    <h3>⇄ 同步到同级同类单位</h3>
+    <div id="sync-modal-body" style="font-size:13px;color:var(--fg-muted);line-height:1.8;margin-bottom:16px;max-height:40vh;overflow-y:auto;"></div>
+    <div class="modal-actions" style="flex-wrap:wrap;gap:8px;">
+      <button id="sync-cancel">取消</button>
+      <button id="sync-self">仅同步本级</button>
+      <button id="sync-all" class="primary">含下属完整同步</button>
+    </div>
+  </div>
+</div>
+
 <!-- 移动端"更多功能"菜单 -->
 <div class="modal-mask" id="mobile-more-modal">
   <div class="modal" style="min-width: 0; width: 90vw; max-width: 380px;">
@@ -2378,6 +2390,10 @@ function fillPanel(node) {
 }
 
 /* ---- 同步（含可选子树） ---- */
+const syncModal = document.getElementById('sync-modal');
+const syncModalBody = document.getElementById('sync-modal-body');
+let syncPendingNode = null;
+
 function syncToSiblings(node) {
   const parent = findParent(node);
   if (!parent) { toast('根节点无法同步', true); return; }
@@ -2386,18 +2402,30 @@ function syncToSiblings(node) {
   );
   if (!siblings.length) { toast('未找到同级同类单位', true); return; }
 
-  const includeChildren = window.confirm(
-    `找到 ${siblings.length} 个同级同类单位：\n` +
-    siblings.map(s => '  · ' + s.name).join('\n') + '\n\n' +
-    `点击【确定】→ 同步本级 + 所有下属部队（完整编制）\n` +
-    `点击【取消】→ 仅同步本级（人数 + 装备）`
-  );
-
   const desc = countDescendants(node);
-  const msg = includeChildren
-    ? `确认将「${node.name}」的完整编制（含 ${desc} 个下属单位）同步到以上单位？\n\n所有兄弟单位的下属部队会被当前单位的下属覆盖。`
-    : `确认将「${node.name}」的人数和装备同步到以上单位？\n\n（不改变它们的下属部队）`;
-  if (!window.confirm(msg)) return;
+  syncModalBody.innerHTML =
+    `找到 <b>${siblings.length}</b> 个同级同类单位：<br>` +
+    siblings.map(s => '· ' + escapeHtml(s.name)).join('<br>') +
+    `<br><br>选择同步方式：<br>` +
+    `· <b>仅同步本级</b>：只同步人数和装备，不改变它们的下属部队<br>` +
+    `· <b>含下属完整同步</b>：把「${escapeHtml(node.name)}」的完整编制（含 <b>${desc}</b> 个下属单位）覆盖过去，兄弟单位的下属部队会被替换`;
+
+  syncPendingNode = node;
+  syncModal.classList.add('show');
+}
+
+function doSyncToSiblings(includeChildren) {
+  const node = syncPendingNode;
+  syncModal.classList.remove('show');
+  syncPendingNode = null;
+  if (!node) return;
+
+  const parent = findParent(node);
+  if (!parent) return;
+  const siblings = parent.children.filter(c =>
+    c !== node && c.type === node.type && c.echelon === node.echelon
+  );
+  if (!siblings.length) return;
 
   pushHistory();
 
@@ -2421,6 +2449,13 @@ function syncToSiblings(node) {
     ? `已同步完整编制到 ${siblings.length} 个单位`
     : `已同步数据到 ${siblings.length} 个单位`);
 }
+
+document.getElementById('sync-cancel').addEventListener('click', () => {
+  syncModal.classList.remove('show');
+  syncPendingNode = null;
+});
+document.getElementById('sync-self').addEventListener('click', () => doSyncToSiblings(false));
+document.getElementById('sync-all').addEventListener('click', () => doSyncToSiblings(true));
 
 function renderEquipEditor(node) {
   const list = document.getElementById('equip-list');
