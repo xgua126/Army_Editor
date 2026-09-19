@@ -1,0 +1,3507 @@
+<!--
+  ⚔ 军队编制编辑器
+  作者：BiliBili@勘茶Kchs_ 与 DeepSeek 联合创作
+  本工具完全免费，仅供娱乐。若您通过付费渠道获得，请注意可能已上当受骗。
+  请勿移除署名后二次分发或收费。
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>军队编制编辑器</title>
+<meta name="author" content="BiliBili@勘茶Kchs_">
+<meta name="copyright" content="本网页由 BiliBili@勘茶Kchs_ 与 DeepSeek 联合创作，禁止移除署名后二次分发或收费">
+<meta name="description" content="军队编制编辑器 · 免费开源的娱乐性工具">
+<style>
+  * { box-sizing: border-box; }
+  :root {
+    --bg:#f5f7fa; --canvas-bg:#f8fafc; --dot-pattern:#d7dee8;
+    --panel-bg:#fff; --fg:#1e293b; --fg-muted:#64748b; --fg-dim:#94a3b8;
+    --border:#e2e8f0; --input-bg:#fff; --input-border:#cbd5e1;
+    --accent:#2563eb; --accent-hover:#1d4ed8;
+    --link-color:#9db4d4; --header-bg:linear-gradient(180deg,#1e293b,#16202f);
+    --shadow:rgba(0,0,0,.15); --node-hover:rgba(37,99,235,.08);
+    --node-selected:rgba(37,99,235,.13); --legend-bg:#eef2f7;
+    --empty-bg:#f8fafc; --stats-bg:#f8fafc;
+    --stats-highlight-bg:#eff6ff; --stats-highlight-border:#bfdbfe;
+    --equip-bg:#f8fafc;
+  }
+  body.dark {
+    --bg:#0f172a; --canvas-bg:#0b1220; --dot-pattern:#1e293b;
+    --panel-bg:#1e293b; --fg:#e2e8f0; --fg-muted:#94a3b8; --fg-dim:#64748b;
+    --border:#334155; --input-bg:#0f172a; --input-border:#475569;
+    --accent:#3b82f6; --accent-hover:#60a5fa;
+    --link-color:#475569; --header-bg:linear-gradient(180deg,#020617,#0f172a);
+    --shadow:rgba(0,0,0,.5); --node-hover:rgba(59,130,246,.15);
+    --node-selected:rgba(59,130,246,.28); --legend-bg:#334155;
+    --empty-bg:#0f172a; --stats-bg:#0f172a;
+    --stats-highlight-bg:#1e3a5f; --stats-highlight-border:#1e40af;
+    --equip-bg:#0f172a;
+  }
+  html, body { margin:0; height:100%; font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg); color:var(--fg); overflow:hidden; transition:background .25s,color .25s; }
+  body { display:flex; flex-direction:column; }
+  header { height:56px; flex:none; display:flex; align-items:center; gap:8px;
+    padding:0 16px; background:var(--header-bg); color:#fff;
+    box-shadow:0 2px 8px var(--shadow); z-index:10; }
+  header h1 { font-size:15px; font-weight:600; margin:0 8px 0 0; letter-spacing:.5px; }
+  header h1 .version { font-size:11px; color:#94a3b8; font-weight:400; margin-left:6px; letter-spacing:0; }
+  header .spacer { flex:1; }
+  header button { font:inherit; font-size:13px; padding:7px 12px; border-radius:6px;
+    border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.08);
+    color:#e2e8f0; cursor:pointer; transition:.15s; white-space:nowrap; }
+  header button:hover { background:rgba(255,255,255,.18); }
+  header button.primary { background:#2563eb; border-color:#2563eb; color:#fff; }
+  header button.primary:hover { background:#1d4ed8; }
+  header button.green { background:#16a34a; border-color:#16a34a; color:#fff; }
+  header button.green:hover { background:#15803d; }
+  header .hint { font-size:12px; color:#94a3b8; }
+
+  #main { flex:1; display:flex; min-height:0; overflow:hidden; }
+  #wrap { flex:1; position:relative; overflow:auto;
+    background:radial-gradient(circle at 1px 1px,var(--dot-pattern) 1px,transparent 0) 0 0/22px 22px,
+      var(--canvas-bg); transition:background .25s; }
+    #wrap::before {
+    content: 'BiliBili@勘茶Kchs_ 免费提供';
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) rotate(-22deg);
+    font-size: 44px;
+    font-weight: 900;
+    letter-spacing: 6px;
+    color: rgba(37, 99, 235, 0.055);
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 0;
+    user-select: none;
+  }
+  body.dark #wrap::before {
+    color: rgba(96, 165, 250, 0.07);
+  }
+  #zoom-layer { position: relative; transform-origin: 0 0; }
+  #canvas { position: relative; transform-origin: 0 0; }
+  @media (min-width: 901px) {
+    #wrap { cursor: grab; }
+    #wrap.panning { cursor: grabbing; }
+  }
+  #links { position:absolute; top:0; left:0; pointer-events:none; overflow:visible; }
+  #nodes { position:absolute; top:0; left:0; }
+
+    .node { position:absolute; width:120px; height:120px;
+    display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+    padding-top:16px; gap:2px; border-radius:9px; cursor:grab;
+    user-select:none; touch-action:none; transition:background .15s, box-shadow .15s; }
+  .node:hover { background:var(--node-hover); }
+  .node.selected { background:var(--node-selected); box-shadow:0 0 0 2px var(--accent); }
+  .node.dragging { opacity:.3; }
+  .node .sym { display:flex; pointer-events:none; flex-shrink:0; }
+  .node .sym svg { display:block; }
+  .node .label { font-size:12px; line-height:1.25; text-align:center;
+    color:var(--fg); font-weight:500; width:112px; height:30px; overflow:hidden;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+    pointer-events:none; flex-shrink:0; }
+  .node .collapse-btn { position:absolute; top:3px; right:3px;
+    width:16px; height:16px; border-radius:50%; background:var(--accent); color:#fff;
+    font-size:12px; font-weight:700; line-height:16px; text-align:center;
+    cursor:pointer; z-index:3; user-select:none; box-shadow:0 1px 3px rgba(0,0,0,.2);
+    transition:background .15s, transform .1s; pointer-events:auto; }
+  .node .collapse-btn:hover { background:var(--accent-hover); transform:scale(1.1); }
+  .node .collapse-btn.collapsed { background:#d97706; }
+  .node .collapse-btn.collapsed:hover { background:#b45309; }
+    .node .layout-btn { position:absolute; top:3px; right:22px;
+    width:16px; height:16px; border-radius:50%; background:#7c3aed; color:#fff;
+    font-size:10px; font-weight:700; line-height:16px; text-align:center;
+    cursor:pointer; z-index:3; user-select:none; box-shadow:0 1px 3px rgba(0,0,0,.2);
+    transition:background .15s, transform .1s; pointer-events:auto;
+    font-family:ui-monospace, monospace; }
+  .node .layout-btn:hover { background:#6d28d9; transform:scale(1.1); }
+  .node .layout-btn.v { background:#0891b2; }
+  .node .layout-btn.v:hover { background:#0e7490; }
+  .node .badge { position:absolute; top:2px; left:2px;
+    height:18px; padding:0 7px; background:rgba(10,61,145,.92); color:#fff;
+    border-radius:9px; font-size:10px; line-height:20px; font-weight:600;
+    box-shadow:0 1px 4px rgba(0,0,0,.25); pointer-events:none; white-space:nowrap; }
+  .node .remark-icon { position:absolute; bottom:2px; right:4px; font-size:12px;
+    cursor:help; pointer-events:auto; line-height:1;
+    filter:drop-shadow(0 1px 1px rgba(0,0,0,.2)); }
+  .node.ghost { position:fixed; pointer-events:none; z-index:9999; opacity:.92;
+    background:var(--panel-bg); border-radius:9px;
+    box-shadow:0 10px 28px rgba(15,23,42,.28); transform:scale(.95); }
+  .node.drop-child { outline:3px dashed #16a34a; outline-offset:3px; background:rgba(22,163,74,.1); }
+  .node.drop-before::before, .node.drop-after::after {
+    content:''; position:absolute; left:2px; right:2px; height:4px;
+    background:#16a34a; border-radius:2px; }
+  .node.drop-before::before { top:-10px; }
+  .node.drop-after::after  { bottom:-10px; }
+
+  aside { flex:none; background:var(--panel-bg); overflow-y:auto; transition:background .25s; }
+  aside.lib { width:260px; border-right:1px solid var(--border); padding:14px 12px;
+    position:relative; transition: margin-left .25s; }
+  aside.lib.drag-over-delete { background:rgba(220,38,38,.12); box-shadow:inset 0 0 0 3px #dc2626; }
+  aside.lib.drag-over-delete::after {
+    content:'🗑 松开删除该单位'; position:absolute; top:50%; left:50%;
+    transform:translate(-50%,-50%); padding:8px 16px; border-radius:8px;
+    background:#dc2626; color:#fff; font-size:13px; font-weight:600;
+    box-shadow:0 4px 12px rgba(0,0,0,.3); pointer-events:none; z-index:10; }
+  aside.props { width:227px; border-left:1px solid var(--border); padding:14px;
+    transition: margin-right .25s; }
+  aside h2 { font-size:13px; text-transform:uppercase; letter-spacing:.8px;
+    color:var(--fg-muted); margin:0 0 12px; font-weight:600; }
+
+  .lib-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .lib-item { display:flex; flex-direction:column; align-items:center; gap:3px;
+    padding:6px 2px 5px; border-radius:8px; border:1px solid var(--border);
+    background:var(--legend-bg); cursor:grab; user-select:none; touch-action:none;
+    transition:background .15s, border-color .15s, transform .1s; }
+  .lib-item:hover { background:var(--node-hover); border-color:var(--accent); }
+  .lib-item:active { transform:scale(.96); }
+  .lib-item .sym { display:flex; pointer-events:none; }
+  .lib-item .sym svg { width:50px; height:auto; display:block; }
+  .lib-item span { font-size:11px; color:var(--fg-muted); pointer-events:none; white-space:nowrap; }
+  .lib-item { position: relative; }
+  .lib-del-btn { position:absolute; top:2px; right:2px; width:16px; height:16px;
+    border-radius:50%; background:#dc2626; color:#fff; font-size:11px; line-height:16px;
+    text-align:center; cursor:pointer; z-index:3; user-select:none; pointer-events:auto;
+    box-shadow:0 1px 3px rgba(0,0,0,.25); font-weight:700; }
+  .lib-del-btn:hover { background:#b91c1c; }
+  .lib-search { width:100%; padding:6px 9px; font:inherit; font-size:12px;
+    border:1px solid var(--input-border); border-radius:6px; background:var(--input-bg);
+    color:var(--fg); margin-bottom:8px; }
+  .lib-search:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 2px rgba(37,99,235,.15); }
+
+  .lib-new-btn { width:100%; padding:8px; margin-bottom:10px;
+    border:1px dashed var(--input-border); border-radius:6px;
+    background:var(--panel-bg); color:var(--fg-muted); cursor:pointer;
+    font:inherit; font-size:12px; transition:.15s; }
+  .lib-new-btn:hover { border-color:var(--accent); color:var(--accent); background:var(--node-hover); }
+
+  .custom-preview-box { display:flex; justify-content:center; padding:14px;
+    background:var(--stats-bg); border:1px solid var(--border); border-radius:8px;
+    margin-bottom:12px; }
+  .custom-section-title { font-size:11px; font-weight:600; color:var(--fg-muted);
+    margin:10px 0 6px; padding-bottom:4px; border-bottom:1px solid var(--border); }
+  .custom-picker { display:grid; grid-template-columns:repeat(auto-fill, minmax(64px,1fr));
+    gap:6px; max-height:170px; overflow-y:auto; padding:2px; }
+  .custom-pick-item { display:flex; flex-direction:column; align-items:center;
+    padding:4px; border:2px solid var(--border); border-radius:8px;
+    background:var(--panel-bg); cursor:pointer; transition:.12s; user-select:none; }
+  .custom-pick-item:hover { border-color:var(--accent); }
+  .custom-pick-item.on { border-color:var(--accent); background:var(--node-selected);
+    box-shadow:0 0 0 1px var(--accent); }
+  .custom-pick-item svg { display:block; }
+  .custom-pick-item .nm { font-size:10px; color:var(--fg-muted); margin-top:2px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  .custom-pick-item.on .nm { color:var(--accent); font-weight:600; }
+
+  .cat-tabs { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px; }
+  .cat-tab { font:inherit; font-size:11px; padding:3px 9px; border-radius:12px;
+    border:1px solid var(--border); background:var(--panel-bg); color:var(--fg-muted);
+    cursor:pointer; transition:.15s; white-space:nowrap; }
+  .cat-tab:hover { border-color:var(--accent); color:var(--accent); }
+  .cat-tab.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .lib-empty { grid-column:1/-1; text-align:center; color:var(--fg-dim);
+    font-size:12px; padding:18px 6px; line-height:1.7; }
+
+  .lib-hint { margin-top:14px; font-size:11px; color:var(--fg-dim);
+    line-height:1.7; padding-top:12px; border-top:1px dashed var(--border); }
+  .lib-hint b { color:var(--fg-muted); }
+
+  .empty-tip { font-size:13px; color:var(--fg-dim); line-height:1.7;
+    padding:12px; background:var(--empty-bg); border-radius:8px; border:1px dashed var(--border); }
+  .field { margin-bottom:14px; }
+  .field label { display:block; font-size:12px; color:var(--fg-muted);
+    margin-bottom:6px; font-weight:500; }
+  .field input, .field select, .field textarea {
+    width:100%; font:inherit; font-size:13px; padding:8px 10px; border-radius:6px;
+    border:1px solid var(--input-border); background:var(--input-bg); color:var(--fg);
+    outline:none; transition:.15s; font-family:inherit; resize:vertical; }
+  .field textarea { min-height:56px; }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    border-color:var(--accent); box-shadow:0 0 0 3px rgba(37,99,235,.14); }
+
+  .btns { display:flex; flex-direction:column; gap:8px; margin-top:24px;
+    padding-top:18px; border-top:1px dashed var(--border); }
+  .btns button { font:inherit; font-size:13px; padding:9px 12px; border-radius:6px;
+    cursor:pointer; transition:.15s; border:1px solid var(--input-border);
+    background:var(--legend-bg); color:var(--fg); }
+  .btns button:hover { background:var(--node-hover); }
+  .btns button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btns button.primary:hover { background:var(--accent-hover); }
+  .btns button.danger { background:var(--panel-bg); border-color:#fca5a5; color:#dc2626; }
+  .btns button.danger:hover { background:#fef2f2; color:#b91c1c; }
+  body.dark .btns button.danger:hover { background:#450a0a; }
+  .btns button.warn { background:var(--panel-bg); border-color:#fdba74; color:#c2410c; }
+  .btns button.warn:hover { background:#fff7ed; }
+  body.dark .btns button.warn:hover { background:#451a03; }
+  .btns button.sync { background:var(--panel-bg); border-color:#a78bfa; color:#6d28d9; }
+  .btns button.sync:hover { background:#f5f3ff; }
+  body.dark .btns button.sync:hover { background:#2e1065; }
+
+  .legend { margin-top:22px; padding-top:16px; border-top:1px solid var(--border);
+    font-size:12px; color:var(--fg-muted); line-height:1.9; }
+  .legend b { color:var(--fg); }
+  .legend .k { display:inline-block; min-width:16px; text-align:center;
+    font-family:ui-monospace, monospace; font-size:11px;
+    background:var(--legend-bg); border-radius:4px; padding:1px 5px;
+    margin-right:6px; color:var(--accent); border:1px solid var(--border); }
+
+  .equip-list { display:flex; flex-direction:column; gap:5px; margin-bottom:6px; }
+  .equip-item { display:flex; align-items:center; gap:6px;
+    padding:4px 8px; background:var(--equip-bg); border:1px solid var(--border);
+    border-radius:5px; font-size:12px; }
+  .equip-item .name { flex:1; color:var(--fg); overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; }
+  .equip-item input { width:56px; padding:3px 6px; font-size:12px;
+    border:1px solid var(--input-border); border-radius:4px;
+    text-align:right; outline:none; background:var(--input-bg);
+    color:var(--fg); font-family:inherit; }
+  .equip-item input:focus { border-color:var(--accent); }
+  .equip-item .del { cursor:pointer; color:#dc2626; border:none; background:none;
+    font-size:14px; padding:0 4px; line-height:1; }
+  .equip-item .del:hover { color:#b91c1c; }
+  .equip-add { display:flex; gap:5px; }
+  .equip-add input { font-size:12px; padding:6px 8px;
+    border:1px solid var(--input-border); border-radius:5px;
+    outline:none; font-family:inherit; min-width:0;
+    background:var(--input-bg); color:var(--fg); }
+  .equip-add input:focus { border-color:var(--accent); box-shadow:0 0 0 2px rgba(37,99,235,.12); }
+  .equip-add #equip-name { flex:2; }
+  .equip-add #equip-count { flex:1; min-width:48px; }
+  .equip-add button { padding:0 12px; border-radius:5px;
+    border:1px solid var(--accent); background:var(--accent); color:#fff;
+    cursor:pointer; font-size:14px; font-weight:700; }
+  .equip-add button:hover { background:var(--accent-hover); }
+  .stats-empty { color:var(--fg-dim); font-style:italic; font-size:11px; padding:3px 0; }
+
+  #stats { font-size:12px; }
+  .stats-block { padding:10px 12px; background:var(--stats-bg);
+    border:1px solid var(--border); border-radius:8px; margin-bottom:10px; }
+  .stats-block.highlight { background:var(--stats-highlight-bg);
+    border-color:var(--stats-highlight-border); }
+  .stats-title { font-size:12px; font-weight:600; color:var(--fg);
+    margin-bottom:8px; padding-bottom:6px; border-bottom:1px dashed var(--border);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .stats-row { display:flex; justify-content:space-between; align-items:baseline;
+    padding:3px 0; color:var(--fg-muted); }
+  .stats-row b { color:#0a3d91; font-weight:700; font-size:14px; }
+  body.dark .stats-row b { color:#7cb1f0; }
+  .stats-row.personnel b { color:#1e40af; }
+  body.dark .stats-row.personnel b { color:#93c5fd; }
+  .stats-equip { margin-top:8px; padding-top:8px;
+    border-top:1px dashed var(--border); display:flex; flex-direction:column; gap:3px; }
+  .stats-equip-item { display:flex; justify-content:space-between;
+    color:var(--fg-muted); padding:1px 0; }
+  .stats-equip-item span:last-child { color:var(--fg); font-weight:600; }
+
+  .modal-mask { position:fixed; inset:0; background:rgba(15,23,42,.55);
+    display:none; align-items:center; justify-content:center; z-index:200; }
+  .modal-mask.show { display:flex; }
+  .modal { background:var(--panel-bg); border:1px solid var(--border);
+    border-radius:12px; padding:20px 22px; min-width:360px; max-width:90vw;
+    max-height:80vh; box-shadow:0 20px 40px rgba(0,0,0,.3);
+    display:flex; flex-direction:column; }
+  .modal h3 { margin:0 0 14px; font-size:15px; color:var(--fg);
+    padding-bottom:10px; border-bottom:1px solid var(--border); }
+  .modal-list { flex:1; overflow-y:auto; display:flex; flex-direction:column;
+    gap:6px; margin-bottom:14px; min-height:80px; max-height:50vh; }
+  .modal-item { display:flex; align-items:center; gap:10px; padding:9px 12px;
+    background:var(--legend-bg); border:1px solid var(--border); border-radius:7px;
+    cursor:pointer; transition:.15s; }
+  .modal-item:hover { background:var(--node-hover); border-color:var(--accent); }
+  .modal-item .info { flex:1; min-width:0; }
+  .modal-item .name { font-size:13px; font-weight:600; color:var(--fg);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .modal-item .meta { font-size:11px; color:var(--fg-dim);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .modal-item .del-btn { background:none; border:none; color:#dc2626;
+    cursor:pointer; font-size:15px; padding:2px 6px; line-height:1; border-radius:4px; }
+  .modal-item .del-btn:hover { background:rgba(220,38,38,.12); }
+  .modal-actions { display:flex; gap:8px; justify-content:flex-end; }
+  .modal-actions button { font:inherit; font-size:13px; padding:8px 14px;
+    border-radius:6px; cursor:pointer; transition:.15s;
+    border:1px solid var(--input-border); background:var(--legend-bg); color:var(--fg); }
+  .modal-actions button:hover { background:var(--node-hover); }
+  .modal-actions button.primary { background:var(--accent);
+    border-color:var(--accent); color:#fff; }
+  .modal-actions button.primary:hover { background:var(--accent-hover); }
+  .modal-actions button:disabled { opacity:.4; cursor:not-allowed; }
+  .modal-input { width:100%; font:inherit; font-size:13px;
+    padding:9px 11px; margin-bottom:14px;
+    border:1px solid var(--input-border); background:var(--input-bg);
+    color:var(--fg); border-radius:6px; outline:none; }
+  .modal-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(37,99,235,.14); }
+  .modal-empty { padding:20px; text-align:center; color:var(--fg-dim); font-size:13px; }
+
+  .preset-item { display:flex; align-items:center; gap:14px; padding:14px 16px;
+    background:var(--legend-bg); border:1px solid var(--border); border-radius:9px;
+    cursor:pointer; transition:.15s; }
+  @media (hover: hover) {
+    .preset-item:hover { background:var(--node-hover); border-color:var(--accent); transform:translateY(-1px); }
+  }
+  .preset-item.active { border-color:var(--accent); background:var(--node-selected); box-shadow:0 0 0 2px var(--accent); }
+  .preset-icon { font-size:28px; line-height:1; }
+  .preset-info { flex:1; }
+  .preset-info .name { font-size:14px; font-weight:700; color:var(--fg); margin-bottom:3px; }
+  .preset-info .desc { font-size:12px; color:var(--fg-muted); line-height:1.5; }
+  .welcome-choices { display:flex; gap:10px; margin-bottom:4px; }
+  .welcome-choice { flex:1; padding:12px 16px; border:2px solid var(--border); border-radius:8px;
+    text-align:center; cursor:pointer; font-size:13px; transition:.15s; user-select:none; }
+  .welcome-choice:hover { border-color:var(--accent); }
+  .welcome-choice.active { border-color:var(--accent); background:var(--node-selected); color:var(--accent); font-weight:600; }
+
+  .changelog-body { flex:1; overflow-y:auto; padding-right:6px;
+    max-height:60vh; font-size:13px; color:var(--fg); }
+  .changelog-version { margin-bottom:16px; padding-bottom:12px;
+    border-bottom:1px dashed var(--border); }
+  .changelog-version:last-child { border-bottom:none; margin-bottom:0; padding-bottom:0; }
+  .changelog-version h4 { margin:0 0 8px; font-size:14px;
+    color:var(--accent); font-weight:700; }
+  .changelog-version h4 span { font-size:12px; color:var(--fg-dim);
+    font-weight:400; margin-left:8px; }
+  .changelog-version ul { margin:0; padding-left:20px;
+    line-height:1.8; color:var(--fg-muted); }
+  .changelog-version li { margin-bottom:2px; }
+
+  .panel-toggle {
+    position: fixed;
+    top: 50%;
+    z-index: 100;
+    width: 18px; height: 46px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    font-size: 11px; font-weight: 700;
+    padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+    transition: left .25s, right .25s, background .15s;
+  }
+  .panel-toggle:hover { background: var(--accent-hover); }
+
+  #toggle-lib {
+    left: 260px;
+    border-radius: 0 4px 4px 0;
+    transform: translateY(-50%);
+  }
+  body.hide-lib #toggle-lib {
+    left: 0;
+    transform: translateY(-50%) scaleX(-1);
+  }
+
+  #toggle-props {
+    right: 227px;
+    border-radius: 4px 0 0 4px;
+    transform: translateY(-50%);
+  }
+  body.hide-props #toggle-props {
+    right: 0;
+    transform: translateY(-50%) scaleX(-1);
+  }
+
+  body.hide-lib aside.lib   { margin-left: -260px; }
+  body.hide-props aside.props { margin-right: -227px; }
+
+
+  #watermark { position:fixed; bottom:10px; left:50%; transform:translateX(-50%);
+    font-size:11px; color:var(--fg-dim); opacity:.85; pointer-events:none; z-index:100;
+    background:var(--panel-bg); padding:4px 14px; border-radius:14px;
+    border:1px solid var(--border); box-shadow:0 2px 8px var(--shadow);
+    user-select:none; white-space:nowrap; letter-spacing:.3px; }
+
+  .mobile-only { display: none !important; }
+
+  .mobile-mask {
+    position: fixed;
+    top: 48px; left: 0; right: 0; bottom: 0;
+    background: rgba(15,23,42,.25);
+    z-index: 250;
+    display: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mobile-mask.show { display: block; }
+
+  .mobile-more-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .mobile-more-grid button {
+    font: inherit; font-size: 13px;
+    padding: 12px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--input-border);
+    background: var(--legend-bg);
+    color: var(--fg);
+    cursor: pointer;
+    text-align: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mobile-more-grid button:active { background: var(--node-hover); }
+  .mobile-more-grid button.full { grid-column: 1 / -1; }
+
+  @media (max-width: 900px) {
+    input, select, textarea { font-size: 16px !important; }
+
+    header {
+      height: 48px;
+      padding: 0 6px;
+      gap: 4px;
+      overflow: hidden;
+    }
+    header h1 {
+      font-size: 13px;
+      margin: 0;
+      flex: 1 1 auto;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+    }
+    header h1 .version { display: none; }
+    header .hint,
+    header .spacer { display: none; }
+    header button {
+      font-size: 12px;
+      padding: 6px 9px;
+      flex-shrink: 0;
+    }
+
+    header button.desktop-only { display: none; }
+
+    .mobile-only { display: inline-flex !important; align-items: center; justify-content: center; }
+
+    aside.lib, aside.props {
+      position: fixed !important;
+      left: 0; right: 0; bottom: 0;
+      top: auto;
+      width: 100% !important;
+      height: 40vh;
+      max-height: 380px;
+      min-height: 260px;
+      margin-left: 0 !important;
+      margin-right: 0 !important;
+      z-index: 260;
+      transform: translateY(100%);
+      transition: transform .3s cubic-bezier(.2,.8,.2,1);
+      border-radius: 18px 18px 0 0;
+      box-shadow: 0 -6px 28px rgba(0,0,0,.25);
+      padding: 20px 14px calc(14px + env(safe-area-inset-bottom, 0px)) !important;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      border-top: 1px solid var(--border);
+      border-right: none;
+      border-left: none;
+    }
+
+    aside.lib::before,
+    aside.props::before {
+      content: '';
+      position: absolute;
+      top: 8px; left: 50%;
+      transform: translateX(-50%);
+      width: 42px; height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+    }
+
+    body.mobile-lib-open aside.lib,
+    body.mobile-props-open aside.props {
+      transform: translateY(0);
+    }
+
+    .panel-toggle { display: none !important; }
+
+    aside h2 {
+      font-size: 12px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    aside.lib h2::after,
+    aside.props h2::after {
+      content: '点上方空白处关闭';
+      font-size: 10px;
+      color: var(--fg-dim);
+      letter-spacing: 0;
+      text-transform: none;
+      font-weight: 400;
+    }
+
+    .lib-grid {
+      grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+      gap: 5px;
+    }
+    .lib-item {
+      padding: 6px 3px;
+      border-radius: 7px;
+    }
+    .lib-item .sym svg { width: 40px; }
+    .lib-item span { font-size: 10px; }
+    .lib-hint { font-size: 11px; margin-top: 12px; padding-top: 10px; }
+
+    aside.props .field { margin-bottom: 10px; }
+    aside.props .field label { font-size: 11px; margin-bottom: 4px; }
+    aside.props .field input,
+    aside.props .field select,
+    aside.props .field textarea { font-size: 12px; padding: 6px 8px; }
+    aside.props .btns { gap: 6px; margin-top: 12px; }
+    aside.props .btns button { font-size: 12px; padding: 8px 10px; }
+    aside.props .legend { display: none; }
+
+    .node .collapse-btn,
+    .node .layout-btn {
+      width: 18px;
+      height: 18px;
+      line-height: 18px;
+      font-size: 11px;
+    }
+    .node .layout-btn { right: 24px; }
+
+    .modal {
+      min-width: auto !important;
+      width: 92vw;
+      max-width: 92vw;
+      padding: 16px;
+      max-height: 88vh;
+    }
+    .modal h3 { font-size: 14px; }
+    .modal-list { max-height: 40vh; }
+    .welcome-choices { flex-direction: column; }
+
+    #welcome-modal .modal {
+      max-height: 92vh;
+      overflow-y: auto;
+      display: block;
+      padding: 14px;
+    }
+    #welcome-modal .modal-list {
+      max-height: none;
+      flex: none;
+      margin-bottom: 12px;
+      overflow: visible;
+    }
+    #welcome-modal .welcome-choices { gap: 6px; }
+    #welcome-modal .welcome-choice { padding: 10px 14px; font-size: 12px; }
+    #welcome-modal .preset-item { padding: 10px 12px; gap: 10px; }
+    #welcome-modal .preset-icon { font-size: 22px; }
+    #welcome-modal .preset-info .name { font-size: 13px; }
+    #welcome-modal .preset-info .desc { font-size: 11px; }
+
+    #watermark {
+      font-size: 9px;
+      padding: 3px 10px;
+      max-width: 92vw;
+      white-space: normal;
+      text-align: center;
+    }
+  }
+
+  @media (max-width: 400px) {
+    header button { padding: 5px 8px; font-size: 11px; }
+    header h1 { font-size: 12px; }
+    .mobile-only { padding: 5px 8px !important; font-size: 12px !important; }
+  }
+
+    .lib-item.long-pressing {
+    background: var(--node-selected);
+    box-shadow: 0 0 0 2px var(--accent);
+    transform: scale(1.04);
+  }
+
+  .zoom-controls {
+    position: fixed;
+    right: 243px; bottom: 16px;
+    z-index: 150;
+    display: flex; flex-direction: column; gap: 5px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 5px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.18);
+    user-select: none;
+    transition: right .25s;
+  }
+  body.hide-props .zoom-controls { right: 16px; }
+  .zoom-btn {
+    width: 34px; height: 34px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--legend-bg);
+    color: var(--fg);
+    font-size: 17px; font-weight: 700;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s;
+    padding: 0; line-height: 1;
+    font-family: inherit;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .zoom-btn:hover { background: var(--node-hover); }
+  .zoom-btn:active { background: var(--node-selected); }
+  .zoom-indicator {
+    font-size: 10px;
+    text-align: center;
+    color: var(--fg-muted);
+    font-family: ui-monospace, monospace;
+    padding: 1px 0;
+    font-weight: 600;
+    min-width: 34px;
+  }
+  @media (max-width: 900px) {
+    .zoom-controls { right: 10px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <button class="mobile-only" id="mobile-menu" title="更多功能">☰</button>
+  <button class="mobile-only" id="mobile-open-lib" title="编制库">📚</button>
+
+  <h1>⚔ 军队编制编辑器 <span class="version" id="version-label">v0.0.0</span></h1>
+  <span class="hint">拖动兵牌 · Space 折叠 · 拖到左侧兵牌库可删除 · Ctrl+C/V/Z 复制粘贴撤销</span>
+  <div class="spacer"></div>
+
+  <button id="btn-theme" class="desktop-only">🌙 暗黑</button>
+  <button id="btn-undo" class="desktop-only" title="撤销上一步操作 (Ctrl+Z)">↶ 撤销</button>
+  <button id="btn-collapse-all" class="desktop-only">全部折叠</button>
+  <button id="btn-expand-all" class="desktop-only">全部展开</button>
+  <button id="btn-load" class="desktop-only">📂 加载</button>
+  <button id="btn-preset" class="desktop-only">🗂 切换预设</button>
+  <button id="btn-toggle-stats" class="desktop-only" title="切换兵牌上是否显示人数与装备">👁 显示统计</button>
+  <button id="btn-changelog" class="desktop-only">📜 更新日志</button>
+  <button id="btn-renumber" class="primary desktop-only">自动编号</button>
+
+  <button id="btn-save" class="green">💾 保存</button>
+
+  <button class="mobile-only" id="mobile-open-props" title="单位属性">⚙</button>
+</header>
+
+<button class="panel-toggle" id="toggle-lib" title="隐藏 / 显示兵牌库">◀</button>
+<button class="panel-toggle" id="toggle-props" title="隐藏 / 显示属性栏">▶</button>
+
+<div class="mobile-mask" id="mobile-mask"></div>
+
+<div id="main">
+  <aside class="lib">
+    <h2>兵牌库</h2>
+    <button class="lib-new-btn" id="lib-new-btn">＋ 自定义兵牌</button>
+    <div class="field" style="margin-bottom:10px">
+      <label>编制层级</label>
+      <select id="lib-echelon"></select>
+    </div>
+    <div class="cat-tabs" id="lib-tabs"></div>
+    <input id="lib-search" class="lib-search" type="text" placeholder="🔍 搜索兵种">
+    <div class="lib-grid" id="lib-grid"></div>
+    <div class="lib-hint">
+      <b>拖动</b>兵牌到树状图中放置<br>
+      <b>点击</b>可添加到当前选中单位<br>
+      <b>拖到此处</b>可删除树中的单位
+    </div>
+  </aside>
+
+  <div id="wrap">
+    <div id="zoom-layer">
+      <div id="canvas">
+        <svg id="links"></svg>
+        <div id="nodes"></div>
+      </div>
+    </div>
+  </div>
+
+  <aside class="props">
+    <h2>单位属性</h2>
+    <div id="panel"></div>
+    <h2 style="margin-top:24px">统计汇总</h2>
+    <div id="stats"></div>
+  </aside>
+</div>
+
+<div class="zoom-controls" id="zoom-controls">
+  <button class="zoom-btn" id="zoom-in" title="放大">＋</button>
+  <div class="zoom-indicator" id="zoom-indicator">100%</div>
+  <button class="zoom-btn" id="zoom-out" title="缩小">−</button>
+  <button class="zoom-btn" id="zoom-reset" title="重置" style="font-size:14px;">⟲</button>
+</div>
+
+<div id="watermark">本网页由 BiliBili@勘茶Kchs_ 与 DeepSeek 联合创作，仅供娱乐，感谢支持</div>
+
+<div class="modal-mask" id="save-modal">
+  <div class="modal">
+    <h3>💾 保存当前编制</h3>
+    <input type="text" class="modal-input" id="save-name-input" placeholder="输入存档名称..." maxlength="40">
+    <div class="modal-actions" style="flex-wrap: wrap; gap: 8px;">
+      <button id="save-cancel">取消</button>
+      <button id="save-confirm" class="primary">保存到浏览器</button>
+      <button id="save-file-btn" class="primary" style="background:#7c3aed; border-color:#7c3aed;">💾 保存到文件</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="load-modal">
+  <div class="modal" style="min-width:420px;">
+    <h3>📂 选择存档加载</h3>
+    <div class="modal-list" id="load-list"></div>
+    <div class="modal-actions">
+      <button id="load-cancel">关闭</button>
+      <button id="load-file-btn" class="primary">📂 从文件导入</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="file-input" accept=".json" style="display:none;">
+
+<div class="modal-mask" id="preset-modal">
+  <div class="modal" style="min-width:480px;">
+    <h3>🗂 选择默认预设</h3>
+    <div class="modal-list" style="gap:10px;">
+      <div class="preset-item" data-preset="blank">
+        <div class="preset-icon">📄</div>
+        <div class="preset-info">
+          <div class="name">空白师</div>
+          <div class="desc">仅一个师级单位，从零开始搭建你的编制</div>
+        </div>
+      </div>
+      <div class="preset-item" data-preset="armor">
+        <div class="preset-icon">⚔️</div>
+        <div class="preset-info">
+          <div class="name">装甲师</div>
+          <div class="desc">2 装甲团 · 1 机步团 · 1 炮兵团 · 师直属支援营（机械化侦察）</div>
+        </div>
+      </div>
+      <div class="preset-item" data-preset="infantry">
+        <div class="preset-icon">🎖️</div>
+        <div class="preset-info">
+          <div class="name">步兵师</div>
+          <div class="desc">3 步兵团 · 1 炮兵团 · 师直属支援营（传统徒步步兵）</div>
+        </div>
+      </div>
+      <div class="preset-item" data-preset="mech">
+        <div class="preset-icon">🛡️</div>
+        <div class="preset-info">
+          <div class="name">机械化步兵师</div>
+          <div class="desc">2 机步团 · 1 装甲团 · 1 炮兵团 · 师直属支援营（机械化侦察）</div>
+        </div>
+      </div>
+      <div class="preset-item" data-preset="airborne">
+        <div class="preset-icon">🪂</div>
+        <div class="preset-info">
+          <div class="name">空降师</div>
+          <div class="desc">3 空降团 · 1 空降炮兵团 · 师直属空降支援营（轻装、可空投）</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button id="preset-cancel">取消</button>
+      <button id="preset-confirm" class="primary" disabled>✔ 确认加载</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="welcome-modal">
+  <div class="modal" style="min-width:540px;">
+    <h3>⚔ 欢迎使用军队编制编辑器</h3>
+    <div style="margin-bottom:16px;">
+      <label style="display:block;font-size:13px;color:var(--fg-muted);margin-bottom:8px;font-weight:600;">1. 选择主题风格</label>
+      <div class="welcome-choices" id="welcome-theme">
+        <div class="welcome-choice active" data-theme="light">☀ 正常</div>
+        <div class="welcome-choice" data-theme="dark">🌙 暗黑</div>
+      </div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="display:block;font-size:13px;color:var(--fg-muted);margin-bottom:8px;font-weight:600;">2. 选择初始预设</label>
+      <div class="modal-list" style="max-height:42vh;" id="welcome-preset">
+        <div class="preset-item" data-preset="blank">
+          <div class="preset-icon">📄</div>
+          <div class="preset-info">
+            <div class="name">空白师</div>
+            <div class="desc">仅一个师级单位，从零开始搭建你的编制</div>
+          </div>
+        </div>
+        <div class="preset-item" data-preset="armor">
+          <div class="preset-icon">⚔️</div>
+          <div class="preset-info">
+            <div class="name">装甲师</div>
+            <div class="desc">2 装甲团 · 1 机步团 · 1 炮兵团 · 师直属支援营</div>
+          </div>
+        </div>
+        <div class="preset-item" data-preset="infantry">
+          <div class="preset-icon">🎖️</div>
+          <div class="preset-info">
+            <div class="name">步兵师</div>
+            <div class="desc">3 步兵团 · 1 炮兵团 · 师直属支援营</div>
+          </div>
+        </div>
+        <div class="preset-item" data-preset="mech">
+          <div class="preset-icon">🛡️</div>
+          <div class="preset-info">
+            <div class="name">机械化步兵师</div>
+            <div class="desc">2 机步团 · 1 装甲团 · 1 炮兵团 · 师直属支援营</div>
+          </div>
+        </div>
+        <div class="preset-item" data-preset="airborne">
+          <div class="preset-icon">🪂</div>
+          <div class="preset-info">
+            <div class="name">空降师</div>
+            <div class="desc">3 空降团 · 1 空降炮兵团 · 师直属空降支援营</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--fg-muted);margin-bottom:6px;cursor:pointer;user-select:none;">
+      <input type="checkbox" id="welcome-remember" checked style="width:auto;margin:0;">
+      记住我的选择（下次不再询问，可随时在顶栏「🗂 切换预设」里改）
+    </label>
+    <div class="modal-actions" style="margin-top:12px;">
+      <button id="welcome-confirm" class="primary">开始编辑</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="changelog-modal">
+  <div class="modal" style="min-width:460px;">
+    <h3>📜 更新日志</h3>
+    <div class="changelog-body" id="changelog-body"></div>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button id="changelog-close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="sync-modal">
+  <div class="modal" style="min-width:420px;max-width:92vw;">
+    <h3>⇄ 同步到同级同类单位</h3>
+    <div id="sync-modal-body" style="font-size:13px;color:var(--fg-muted);line-height:1.8;margin-bottom:16px;max-height:40vh;overflow-y:auto;"></div>
+    <div class="modal-actions" style="flex-wrap:wrap;gap:8px;">
+      <button id="sync-cancel">取消</button>
+      <button id="sync-self">仅同步本级</button>
+      <button id="sync-all" class="primary">含下属完整同步</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="mobile-more-modal">
+  <div class="modal" style="min-width: 0; width: 90vw; max-width: 380px;">
+    <h3>更多功能</h3>
+    <div class="mobile-more-grid">
+      <button class="m-more-btn" data-target="btn-theme">🌙 主题切换</button>
+      <button class="m-more-btn" data-target="btn-undo">↶ 撤销</button>
+      <button class="m-more-btn" data-target="btn-collapse-all">全部折叠</button>
+      <button class="m-more-btn" data-target="btn-expand-all">全部展开</button>
+      <button class="m-more-btn" data-target="btn-load">📂 加载存档</button>
+      <button class="m-more-btn" data-target="btn-preset">🗂 切换预设</button>
+      <button class="m-more-btn" data-target="btn-toggle-stats">👁 显示统计</button>
+      <button class="m-more-btn" data-target="btn-changelog">📜 更新日志</button>
+      <button class="m-more-btn full" data-target="btn-renumber">🔢 自动编号</button>
+    </div>
+    <div class="modal-actions" style="margin-top: 14px;">
+      <button id="mobile-more-close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="custom-modal">
+  <div class="modal" style="min-width:600px;max-width:92vw;">
+    <h3>✏️ 自定义兵牌</h3>
+
+    <div class="custom-preview-box" id="custom-preview"></div>
+
+    <div class="custom-section-title">主元素（可多选叠加）</div>
+    <div class="custom-picker" id="custom-main"></div>
+
+    <div class="custom-section-title">框上方修饰</div>
+    <div class="custom-picker" id="custom-s1"></div>
+
+    <div class="custom-section-title">框下方属性</div>
+    <div class="custom-picker" id="custom-s2"></div>
+
+    <div class="field" style="margin-top:14px;">
+      <label>兵牌名称</label>
+      <input id="custom-name" type="text" placeholder="输入名称" maxlength="20">
+    </div>
+
+    <div class="modal-actions">
+      <button id="custom-cancel">取消</button>
+      <button id="custom-confirm" class="primary">✓ 添加到库</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const VERSION = '1.4.0';
+
+console.log(
+  '%c⚔ 军队编制编辑器 · v' + VERSION + '\n' +
+  '%c作者：BiliBili@勘茶Kchs_ 与 DeepSeek 联合创作\n' +
+  '%c本工具完全免费，仅供娱乐。若您通过付费渠道获得，请注意可能已上当受骗。\n' +
+  '%c请勿移除署名后二次分发或收费。',
+  'font-size:18px;color:#2563eb;font-weight:bold;',
+  'font-size:13px;color:#dc2626;',
+  'font-size:12px;color:#ea580c;',
+  'font-size:12px;color:#64748b;'
+);
+
+let SHOW_NODE_STATS = true;
+
+const CHANGELOG = [
+  {
+    version: '1.4.0',
+    date: '2026-09-19',
+    changes: [
+      '新增：完全重做了兵牌绘制系统，使兵牌更加类似真实',
+      '新增：新增大量种类的兵牌',
+      '新增：兵牌自定义系统',
+      '修复：火力组，班，分队标志错误',
+      '优化：手机端欢迎弹窗改为整块滚动，避免按钮被挤出屏幕',
+      '优化：属性面板装备区与操作区之间增加分隔线，减少误触',
+      '优化：移动了缩放按钮防止遮挡装备信息',
+      '优化：增大了信息栏',
+    ],
+  },
+  {
+    version: '1.3.0',
+    date: '2026-09-19',
+    changes: [
+      '新增：移动端适配',
+      '新增：电脑端拖动平移缩放浏览功能',
+      '新增：保存文件到本地防止存档丢失',
+      '新增：有更新时进入网站时弹出的更新日志窗口',
+      '优化：增加了画布大小',
+      '修复：粘贴兵牌后名称显示为“副本”',
+      '修复：库中的兵牌在暗黑风格中仍显示为白天风格',
+    ],
+  },
+  {
+    version: '1.2.7',
+    date: '2026-09-18',
+    changes: [
+      '修复：大量快捷键无法使用',
+      '修复：主题选项对不上',
+      '优化：调整暗黑模式下兵牌的配色',
+    ],
+  },
+  {
+    version: '1.2.6',
+    date: '2026-09-18',
+    changes: [
+      '修复：复制粘贴撤销快捷键无法使用',
+      '优化：延长树状图与兵牌的连接线',
+    ],
+  },
+  {
+    version: '1.2.5',
+    date: '2026-09-18',
+    changes: [
+      '新增：可隐藏库以及信息栏',
+      '优化：将信息栏缩窄',
+    ],
+  },
+  {
+    version: '1.2.0',
+    date: '2026-09-18',
+    changes: [
+      '新增：同步功能可选择同步全部下属部队',
+      '新增：Ctrl+C/V/Z',
+      '新增：空白师预设，',
+      '新增：首次进入的弹窗，选择主题与预设',
+      '优化：大数字自动缩写',
+    ],
+  },
+  {
+    version: '1.1.2',
+    date: '2026-09-18',
+    changes: ['调整：进一步收紧兵牌纵向间距'],
+  },
+  {
+    version: '1.1.1',
+    date: '2026-09-18',
+    changes: ['新增：兵牌上方的装备人数显示开关', '修复：兵牌间距调整未生效'],
+  },
+  {
+    version: '1.1.0',
+    date: '2026-09-18',
+    changes: [
+      '新增：每个单位可独立切换横向/纵向排列',
+      '默认：排、班、组纵向排列，连及以上横向排列',
+      '修复：单位名称过长导致兵牌错位',
+    ],
+  },
+  {
+    version: '1.0.7',
+    date: '2026-09-18',
+    changes: ['增加：背景水印'],
+  },
+  {
+    version: '1.0.5',
+    date: '2026-09-18',
+    changes: ['新增：装甲师预设归位', '修复：师直属营连队编号'],
+  },
+  {
+    version: '1.0.0',
+    date: '2026-09-17',
+    changes: ['新增：三套默认预设'],
+  },
+  {
+    version: '0.5.0',
+    date: '2026-09-01',
+    changes: ['初始版本：树状图编制编辑器', '拖动兵牌调整编制、自动编号、快捷键'],
+  },
+];
+
+document.getElementById('version-label').textContent = 'v' + VERSION;
+
+document.getElementById('changelog-body').innerHTML = CHANGELOG.map(v => `
+  <div class="changelog-version">
+    <h4>v${v.version}<span>${v.date}</span></h4>
+    <ul>${v.changes.map(c => `<li>${escapeHtml(c)}</li>`).join('')}</ul>
+  </div>
+`).join('');
+
+/* 兵种表：结构 = 主元素(main) + 框内上部修饰(s1) + 框内下部属性(s2) */
+const TYPES = {
+  /* —— 机动 —— */
+  infantry:       { name:'步兵',           cat:'maneuver', main:['cross'] },
+  light_infantry: { name:'轻步兵',         cat:'maneuver', main:['cross'],               s2:['light'] },
+  mech:           { name:'机步',           cat:'maneuver', main:['cross','ellipse'] },
+  armor:          { name:'装甲',           cat:'maneuver', main:['ellipse'] },
+  light_armor:    { name:'轻型装甲',       cat:'maneuver', main:['ellipse'],             s2:['light'] },
+  heavy_armor:    { name:'重型装甲',       cat:'maneuver', main:['ellipse'],             s2:['heavy'] },
+  airborne:       { name:'空降',           cat:'maneuver', main:['cross'],               s1:['chute'] },
+  air_assault:    { name:'空中突击',       cat:'maneuver', main:['cross'],               s2:['air_assault'] },
+  mountain:       { name:'山地',           cat:'maneuver', main:['cross'],               s2:['mountain'] },
+  recon:          { name:'侦察',           cat:'maneuver', main:['diagonal'] },
+  recon_mech:     { name:'侦察（机械）',   cat:'maneuver', main:['diagonal','ellipse'] },
+  wheeled_inf:    { name:'摩托化步兵',     cat:'maneuver', main:['cross'],               s2:['wheeled'] },
+
+  /* —— 火力 —— */
+  artillery:      { name:'炮兵',           cat:'fire',     main:['circle_small'] },
+  mlrs:           { name:'多管火箭炮',     cat:'fire',     main:['circle_small'],        s1:['mlrs'] },
+  mortar:         { name:'迫击炮',         cat:'fire',     main:['mortar'] },
+  anti_tank:      { name:'反坦克',         cat:'fire',     main:['circle_small','triangle_up'] },
+  aaa:            { name:'防空',           cat:'fire',     main:['circle_small','triangle_down'] },
+  towed_w:        { name:'轮式牵引炮',     cat:'fire',     main:['circle_small'],        s2:['towed_w'] },
+  towed_t:        { name:'履带牵引炮',     cat:'fire',     main:['circle_small'],        s2:['towed_t'] },
+
+  /* —— 航空 —— */
+  rotary:         { name:'旋翼航空',       cat:'air',      main:['rotary'] },
+  fixedwing:      { name:'固定翼航空',     cat:'air',      main:['fixedwing'] },
+  attack_heli:    { name:'攻击直升机',     cat:'air',      main:['rotary'],              s1:['attack'] },
+  uav_unit:       { name:'无人机部队',     cat:'air',      main:['cross'],               s1:['uav'] },
+
+  /* —— 保障 —— */
+  engineer:       { name:'工兵',           cat:'support',  main:['engineer'] },
+  bridging:       { name:'架桥',           cat:'support',  main:['engineer'],            s1:['bridge'] },
+  signal:         { name:'通讯',           cat:'support',  main:['signal'] },
+  medical:        { name:'医疗',           cat:'support',  main:['medical_cross'] },
+  logistics:      { name:'后勤',           cat:'support',  main:['supply'] },
+  supply:         { name:'补给',           cat:'support',  main:['supply'] },
+  hq:             { name:'指挥',           cat:'support',  main:['text_HQ'] },
+};
+
+const CUSTOM_KEY = 'mil_custom_types_v1';
+
+function getCustomTypes() {
+  try { return JSON.parse(localStorage.getItem(CUSTOM_KEY) || '{}'); }
+  catch (e) { return {}; }
+}
+function setCustomTypes(obj) { localStorage.setItem(CUSTOM_KEY, JSON.stringify(obj)); }
+
+(function mergeCustomTypes() {
+  const custom = getCustomTypes();
+  Object.keys(custom).forEach(k => {
+    TYPES[k] = custom[k];
+  });
+})();
+
+const CHIP_LABELS = {
+  cross:'步兵', ellipse:'装甲', circle_small:'炮兵', supply:'补给',
+  diagonal:'侦察', triangle_up:'反坦克', triangle_down:'防空',
+  mortar:'迫击炮', rotary:'旋翼', fixedwing:'固定翼',
+  engineer:'工兵', signal:'通讯', medical_cross:'医疗', text_HQ:'指挥',
+  chute:'空降', attack:'攻击', bridge:'架桥', mlrs:'多管火箭', uav:'无人机',
+  wave:'两栖', tracked:'履带', wheeled:'轮式', wheeled_cc:'轮式越野',
+  halftrack:'半履带', motorcycle:'摩托车', bicycle:'自行车',
+  towed_w:'轮式牵引', towed_t:'履带牵引', horse:'马',
+  air_assault:'空中突击', mountain:'山地',
+  heavy:'重型', medium:'中型', light:'轻型'
+};
+
+/* 可复用部件 */
+const _rotary = (c) =>
+  `<path d="M36 46 L12 30 L12 62 Z" fill="${c}"/>` +
+  `<path d="M36 46 L60 30 L60 62 Z" fill="${c}"/>`;
+
+const _fixedwing = (c) =>
+  `<path d="M36 46 L14 32 Q10 46 14 60 Z" fill="${c}"/>` +
+  `<path d="M36 46 L58 32 Q62 46 58 60 Z" fill="${c}"/>`;
+
+const _mortar = (c) =>
+  `<line x1="36" y1="30" x2="36" y2="50" stroke="${c}" stroke-width="2.4" stroke-linecap="round"/>` +
+  `<path d="M30 36 L36 30 L42 36" stroke="${c}" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>` +
+  `<circle cx="36" cy="58" r="6" fill="none" stroke="${c}" stroke-width="2.4"/>`;
+
+/* 主元素（框内中部） */
+const ICON_PARTS = {
+  cross:          (c)    => `<path d="M9 30 L63 62 M63 30 L9 62" stroke="${c}" stroke-width="2.6" fill="none" stroke-linecap="round"/>`,
+  ellipse:        (c)    => `<ellipse cx="36" cy="46" rx="27" ry="13" fill="none" stroke="${c}" stroke-width="2.6"/>`,
+  circle_small:   (c)    => `<circle cx="36" cy="46" r="7" fill="${c}"/>`,
+  supply:         (c)    => `<circle cx="36" cy="46" r="13" fill="none" stroke="${c}" stroke-width="2.2"/><line x1="36" y1="33" x2="36" y2="59" stroke="${c}" stroke-width="1.6"/><line x1="23" y1="46" x2="49" y2="46" stroke="${c}" stroke-width="1.6"/><line x1="27" y1="37" x2="45" y2="55" stroke="${c}" stroke-width="1.6"/><line x1="45" y1="37" x2="27" y2="55" stroke="${c}" stroke-width="1.6"/>`,
+  diagonal:       (c)    => `<line x1="9" y1="62" x2="63" y2="30" stroke="${c}" stroke-width="2.8" stroke-linecap="round"/>`,
+  triangle_up:    (c)    => `<path d="M9 62 L36 30 L63 62" stroke="${c}" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round"/>`,
+  triangle_down:  (c)    => `<path d="M9 30 L36 62 L63 30" stroke="${c}" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round"/>`,
+  engineer:       (c)    => `<g transform="rotate(90 36 46)"><path d="M26 30 V62 M26 30 H46 M26 46 H42 M26 62 H46" stroke="${c}" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>`,
+  signal:         (c)    => `<path d="M46 30 L28 46 L42 46 L24 62" stroke="${c}" stroke-width="2.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/>`,
+  medical_cross:  (c)    => `<line x1="36" y1="32" x2="36" y2="60" stroke="${c}" stroke-width="6" stroke-linecap="round"/><line x1="22" y1="46" x2="50" y2="46" stroke="${c}" stroke-width="6" stroke-linecap="round"/>`,
+  text_HQ:        (c)    => `<text x="36" y="46" dy="0.35em" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="900" fill="${c}" letter-spacing="1">HQ</text>`,
+  mortar:         _mortar,
+  rotary:         _rotary,
+  fixedwing:      _fixedwing,
+};
+
+/* 上方元素（统一 y 22~34） */
+const SECTOR1_PARTS = {
+  chute:      (c) => `<path d="M26 30 Q36 22 46 30" stroke="${c}" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M32 30 L36 34 L40 30" stroke="${c}" stroke-width="1.6" fill="none" stroke-linejoin="round"/>`,
+  attack:     (c) => `<text x="36" y="29" dy="0.35em" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="${c}">A</text>`,
+  bridge:     (c) => `<path d="M20 26 L25 29 L47 29 L52 26" stroke="${c}" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 34 L25 31 L47 31 L52 34" stroke="${c}" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
+  mlrs:       (c) => `<path d="M24 27 L36 22 L48 27" stroke="${c}" stroke-width="1.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/><path d="M26 33 L36 28 L46 33" stroke="${c}" stroke-width="1.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/>`,
+  mortar:     (c) => `<path d="M33 28 L36 24 L39 28" stroke="${c}" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="36" cy="32" r="2.2" fill="none" stroke="${c}" stroke-width="1.5"/>`,
+  uav:        (c) => `<path d="M24 25 L36 33 L48 25" stroke="${c}" stroke-width="3.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/>`,
+};
+
+/* 下方元素（移动符号组 + 属性） */
+const SECTOR2_PARTS = {
+  wave:        (c) => `<path d="M6 60 Q14 52 22 60 T38 60 T54 60 T70 60" stroke="${c}" stroke-width="2" fill="none" stroke-linecap="round"/>`,
+  tracked:     (c) => `<rect x="26" y="60" width="20" height="5.5" rx="2.75" fill="none" stroke="${c}" stroke-width="1.6"/>`,
+  wheeled:     (c) => `<circle cx="30" cy="62" r="3" fill="none" stroke="${c}" stroke-width="1.5"/><circle cx="42" cy="62" r="3" fill="none" stroke="${c}" stroke-width="1.5"/>`,
+  wheeled_cc:  (c) => `<circle cx="25" cy="62" r="3" fill="none" stroke="${c}" stroke-width="1.5"/><circle cx="36" cy="62" r="3" fill="none" stroke="${c}" stroke-width="1.5"/><circle cx="47" cy="62" r="3" fill="none" stroke="${c}" stroke-width="1.5"/>`,
+  halftrack:   (c) => `<rect x="26" y="60" width="12" height="5.5" rx="2.75" fill="none" stroke="${c}" stroke-width="1.6"/><circle cx="44" cy="62" r="3" fill="none" stroke="${c}" stroke-width="1.5"/>`,
+  motorcycle:  (c) => `<circle cx="36" cy="62" r="3" fill="none" stroke="${c}" stroke-width="1.5"/>`,
+  bicycle:     (c) => `<circle cx="30" cy="62" r="3" fill="${c}"/><circle cx="42" cy="62" r="3" fill="${c}"/>`,
+  towed_w:     (c) => `<circle cx="27" cy="62" r="3" fill="none" stroke="${c}" stroke-width="1.5"/><rect x="34" y="60" width="14" height="5.5" rx="2.75" fill="none" stroke="${c}" stroke-width="1.6"/>`,
+  towed_t:     (c) => `<rect x="24" y="60" width="14" height="5.5" rx="2.75" fill="none" stroke="${c}" stroke-width="1.6"/><circle cx="45" cy="62" r="3" fill="none" stroke="${c}" stroke-width="1.5"/>`,
+  horse:       (c) => `<path d="M31 58 V63 Q31 66 36 66 Q41 66 41 63 V58" stroke="${c}" stroke-width="1.8" fill="none" stroke-linecap="round"/>`,
+  air_assault: (c) => `<path d="M22 56 L36 64 L50 56" stroke="${c}" stroke-width="1.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/>`,
+  mountain:    (c) => `<path d="M24 66 L36 56 L48 66 Z" fill="${c}"/>`,
+  heavy:       (c) => `<text x="36" y="62" dy="0.35em" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="900" fill="${c}">H</text>`,
+  medium:      (c) => `<text x="36" y="62" dy="0.35em" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="900" fill="${c}">M</text>`,
+  light:       (c) => `<text x="36" y="62" dy="0.35em" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="900" fill="${c}">L</text>`,
+};
+
+const ECHELONS = {
+  army:{name:'集团军'}, corps:{name:'军'}, division:{name:'师'},
+  brigade:{name:'旅'}, regiment:{name:'团'}, battalion:{name:'营'},
+  company:{name:'连'}, platoon:{name:'排'}, section:{name:'分队'},
+  squad:{name:'班'}, team:{name:'火力组'},
+};
+const ECHELON_ORDER = ['army','corps','division','brigade','regiment','battalion','company','platoon','section','squad','team'];
+
+const AUX_TYPES = [
+  'artillery','mlrs','mortar','anti_tank','aaa',
+  'engineer','bridging','signal','medical','supply','hq',
+  'towed_w','towed_t',
+  'recon','recon_mech',
+  'rotary','fixedwing','attack_heli','uav_unit',
+];
+
+const FRAME_W = 72, FRAME_H = 48, TOP_PAD = 22;
+const SYM_W = FRAME_W, SYM_H = FRAME_H + TOP_PAD, FRAME_Y = TOP_PAD;
+const INK_LIGHT = '#0a3d91', PAPER_LIGHT = '#dce8f7';
+const INK_DARK  = '#7cb1f0', PAPER_DARK  = '#1e3a5f';
+const BORDER_SW = 3;
+
+function getThemeColors() {
+  const isDark = document.body.classList.contains('dark');
+  return isDark
+    ? { ink: INK_DARK, paper: PAPER_DARK }
+    : { ink: INK_LIGHT, paper: PAPER_LIGHT };
+}
+
+function echelonMarkSVG(echelon, ink) {
+  const cx = SYM_W/2, cy = TOP_PAD - 11;
+  const drawXs = (n,gap,size) => {
+    let s=''; const h=size/2, sx=cx-(n-1)*gap/2;
+    for (let i=0;i<n;i++){ const x=sx+i*gap;
+      s += `<line x1="${x-h}" y1="${cy-h}" x2="${x+h}" y2="${cy+h}" stroke="${ink}" stroke-width="2.2" stroke-linecap="round"/>`;
+      s += `<line x1="${x+h}" y1="${cy-h}" x2="${x-h}" y2="${cy+h}" stroke="${ink}" stroke-width="2.2" stroke-linecap="round"/>`;
+    } return s;
+  };
+  const drawBars = (n,gap,h) => {
+    let s=''; const half=h/2, sx=cx-(n-1)*gap/2;
+    for (let i=0;i<n;i++){ const x=sx+i*gap;
+      s += `<line x1="${x}" y1="${cy-half}" x2="${x}" y2="${cy+half}" stroke="${ink}" stroke-width="2.6" stroke-linecap="round"/>`;
+    } return s;
+  };
+  const drawDots = (n,gap) => {
+    let s=''; const sx=cx-(n-1)*gap/2;
+    for (let i=0;i<n;i++) s += `<circle cx="${sx+i*gap}" cy="${cy}" r="2.7" fill="${ink}"/>`;
+    return s;
+  };
+  const drawEmptySet = (r, sw) =>
+    `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${ink}" stroke-width="${sw}"/>` +
+    `<line x1="${cx - r}" y1="${cy + r}" x2="${cx + r}" y2="${cy - r}" stroke="${ink}" stroke-width="${sw}" stroke-linecap="round"/>`;
+  switch (echelon) {
+    case 'army': return drawXs(4,7,5.5);
+    case 'corps': return drawXs(3,8,5.5);
+    case 'division': return drawXs(2,10,6.5);
+    case 'brigade': return drawXs(1,0,6.5);
+    case 'regiment': return drawBars(3,7,11);
+    case 'battalion': return drawBars(2,8,11);
+    case 'company': return drawBars(1,0,11);
+    case 'platoon': return drawDots(3,7);
+    case 'section': return drawDots(2,7);
+    case 'squad': return drawDots(1,0);
+    case 'team': return drawEmptySet(4, 2.2);
+    default: return '';
+  }
+}
+
+function typeIconSVG(type, ink, paper, custom) {
+  const def = TYPES[type] || {};
+  const main = custom ? (custom.main || []) : (def.main || []);
+  const s1   = custom ? (custom.s1   || []) : (def.s1   || []);
+  const s2   = custom ? (custom.s2   || []) : (def.s2   || []);
+  const mainSvg = main.map(p => ICON_PARTS[p]    ? ICON_PARTS[p](ink, paper)    : '').join('');
+  const s1Svg   = s1.map(p => SECTOR1_PARTS[p] ? SECTOR1_PARTS[p](ink, paper) : '').join('');
+  const s2Svg   = s2.map(p => SECTOR2_PARTS[p] ? SECTOR2_PARTS[p](ink, paper) : '').join('');
+  return mainSvg + s1Svg + s2Svg;
+}
+
+function buildSymbol(type, echelon, custom) {
+  const { ink, paper } = getThemeColors();
+  return `<svg viewBox="0 0 ${SYM_W} ${SYM_H}" width="${SYM_W}" height="${SYM_H}" xmlns="http://www.w3.org/2000/svg">
+    <rect x="1.5" y="${FRAME_Y+1.5}" width="${FRAME_W-3}" height="${FRAME_H-3}" rx="2.5"
+      fill="${paper}" stroke="${ink}" stroke-width="${BORDER_SW}"/>
+    ${echelonMarkSVG(echelon, ink)}
+    ${typeIconSVG(type, ink, paper, custom)}
+  </svg>`;
+}
+
+let uid = 0;
+const DEFAULT_VERT_ECHELONS = new Set(['platoon', 'section', 'squad', 'team']);
+
+function newNode(type, echelon, name) {
+  return { id:'n'+(++uid), type, echelon,
+    name:name||'', customName:!!name, remark:'',
+    children:[], collapsed:false,
+    layout: DEFAULT_VERT_ECHELONS.has(echelon) ? 'v' : 'h',
+    personnel:0, equipment:[],
+    custom: null };
+}
+
+let root = null, selectedId = null, nodeById = {};
+
+function forEachNode(node, fn) { fn(node); for (const c of node.children) forEachNode(c, fn); }
+function forEachVisibleNode(node, fn) {
+  fn(node);
+  if (!node.collapsed) for (const c of node.children) forEachVisibleNode(c, fn);
+}
+function findParent(node) {
+  if (node === root) return null;
+  let found = null;
+  forEachNode(root, n => { if (n.children.includes(node)) found = n; });
+  return found;
+}
+function isInSubtree(node, ancestor) {
+  let found = false;
+  forEachNode(ancestor, n => { if (n === node) found = true; });
+  return found;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+function fmtNum(n) {
+  if (n < 1000) return String(n);
+  if (n < 10000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+  if (n < 1000000) return Math.round(n / 1000) + 'k';
+  if (n < 1e9) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+  return (n / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
+}
+
+function cloneSubtree(node) {
+  const c = newNode(node.type, node.echelon, node.name);
+  c.customName = !!node.customName;
+  c.remark = node.remark || '';
+  c.collapsed = !!node.collapsed;
+  c.layout = node.layout || 'h';
+  c.personnel = node.personnel || 0;
+  c.equipment = JSON.parse(JSON.stringify(node.equipment || []));
+  c.custom = node.custom ? JSON.parse(JSON.stringify(node.custom)) : null;
+  c.children = node.children.map(cloneSubtree);
+  return c;
+}
+
+function countDescendants(node) {
+  let n = 0;
+  for (const c of node.children) n += 1 + countDescendants(c);
+  return n;
+}
+
+const HISTORY_LIMIT = 30;
+const historyStack = [];
+
+function serializeOrg(node) {
+  const { id, ...rest } = node;
+  return { ...rest, children: node.children.map(serializeOrg) };
+}
+function deserializeOrg(data) {
+  const n = newNode(data.type, data.echelon, data.name);
+  n.customName = !!data.customName;
+  n.remark = data.remark || '';
+  n.collapsed = !!data.collapsed;
+  n.layout = data.layout || (DEFAULT_VERT_ECHELONS.has(data.echelon) ? 'v' : 'h');
+  n.personnel = data.personnel || 0;
+  n.equipment = JSON.parse(JSON.stringify(data.equipment || []));
+  n.custom = data.custom || null;
+  n.children = (data.children || []).map(deserializeOrg);
+  return n;
+}
+
+function pushHistory() {
+  if (!root) return;
+  historyStack.push(JSON.stringify(serializeOrg(root)));
+  if (historyStack.length > HISTORY_LIMIT) historyStack.shift();
+  updateUndoBtn();
+}
+
+function updateUndoBtn() {
+  const btn = document.getElementById('btn-undo');
+  if (!btn) return;
+  btn.disabled = historyStack.length === 0;
+  btn.style.opacity = historyStack.length === 0 ? '.4' : '1';
+  btn.style.cursor = historyStack.length === 0 ? 'not-allowed' : 'pointer';
+}
+
+function undo() {
+  if (!historyStack.length) { toast('没有可撤销的操作', true); return; }
+  const snapshot = historyStack.pop();
+  try {
+    root = deserializeOrg(JSON.parse(snapshot));
+    uid = 0;
+    forEachNode(root, n => {
+      const num = parseInt(n.id.slice(1), 10);
+      if (num > uid) uid = num;
+    });
+    selectedId = null;
+    render(); emptyPanel(); renderStats();
+    updateUndoBtn();
+    toast('已撤销');
+  } catch (e) {
+    toast('撤销失败：' + e.message, true);
+  }
+}
+
+function isAuxSub(parent, child) {
+  if (!['division','regiment','brigade'].includes(parent.echelon)) return false;
+  return AUX_TYPES.includes(child.type);
+}
+
+function getParentShortName(parent) {
+  const name = parent.name || '';
+  if (name.includes('师')) return '师';
+  if (name.includes('团')) return '团';
+  if (name.includes('旅')) return '旅';
+  const map = { division:'师', regiment:'团', brigade:'旅' };
+  return map[parent.echelon] || '';
+}
+
+function renumber(node, force) {
+  const companyCounters = {};
+  const numCounters = {};
+
+  function walk(n, ancestors) {
+    for (const child of n.children) {
+      if (force) child.customName = false;
+      if (!child.customName) {
+        if (isAuxSub(n, child)) {
+          const sn = getParentShortName(n);
+          const tn = TYPES[child.type] ? TYPES[child.type].name : '';
+          const en = ECHELONS[child.echelon] ? ECHELONS[child.echelon].name : '';
+          child.name = `${sn}直属${tn}${en}`;
+        } else {
+          switch (child.echelon) {
+            case 'battalion': {
+              const k = n.id + '_battalion';
+              const x = (numCounters[k] || 0) + 1;
+              numCounters[k] = x;
+              child.name = `${x}营`;
+              break;
+            }
+            case 'company': {
+              let regAnc = null, bnAnc = null;
+              for (let i = ancestors.length - 1; i >= 0; i--) {
+                const p = ancestors[i];
+                if (!regAnc && (p.echelon === 'regiment' || p.echelon === 'brigade')) regAnc = p;
+                if (!bnAnc && p.echelon === 'battalion') bnAnc = p;
+                if (regAnc && bnAnc) break;
+              }
+              const anchor = regAnc || bnAnc;
+              if (anchor) {
+                const k = anchor.id;
+                const x = companyCounters[k] || 0;
+                companyCounters[k] = x + 1;
+                child.name = `${String.fromCharCode(65 + (x % 26))}连`;
+              } else {
+                const k = n.id + '_company';
+                const x = (numCounters[k] || 0) + 1;
+                numCounters[k] = x;
+                child.name = `${x}连`;
+              }
+              break;
+            }
+            case 'platoon': {
+              const k = n.id + '_platoon';
+              const x = (numCounters[k] || 0) + 1;
+              numCounters[k] = x;
+              child.name = `${x}排`;
+              break;
+            }
+            case 'squad': {
+              const k = n.id + '_squad';
+              const x = (numCounters[k] || 0) + 1;
+              numCounters[k] = x;
+              child.name = `${x}班`;
+              break;
+            }
+            case 'section': {
+              const k = n.id + '_section';
+              const x = (numCounters[k] || 0) + 1;
+              numCounters[k] = x;
+              child.name = `${x}分队`;
+              break;
+            }
+            case 'team': {
+              const k = n.id + '_team';
+              const x = (numCounters[k] || 0) + 1;
+              numCounters[k] = x;
+              child.name = `${x}火力组`;
+              break;
+            }
+            default: {
+              const k = n.id + '_' + child.echelon;
+              const x = (numCounters[k] || 0) + 1;
+              numCounters[k] = x;
+              const t = TYPES[child.type] ? TYPES[child.type].name : '';
+              const e = ECHELONS[child.echelon] ? ECHELONS[child.echelon].name : '';
+              child.name = `第${x}${t}${e}`;
+            }
+          }
+        }
+      }
+      ancestors.push(child);
+      walk(child, ancestors);
+      ancestors.pop();
+    }
+  }
+  walk(node, [node]);
+}
+
+function makeBattalion(type, bnP, bnE, coP, coE, plP, plE, sqP, sqE) {
+  const bn = newNode(type, 'battalion');
+  bn.personnel = bnP;
+  bn.equipment = JSON.parse(JSON.stringify(bnE));
+  for (let c = 0; c < 3; c++) {
+    const co = newNode(type, 'company');
+    co.personnel = coP;
+    co.equipment = JSON.parse(JSON.stringify(coE));
+    for (let p = 0; p < 3; p++) {
+      const pl = newNode(type, 'platoon');
+      pl.personnel = plP;
+      pl.equipment = JSON.parse(JSON.stringify(plE));
+      for (let s = 0; s < 3; s++) {
+        const sq = newNode(type, 'squad');
+        sq.personnel = sqP;
+        sq.equipment = JSON.parse(JSON.stringify(sqE));
+        pl.children.push(sq);
+      }
+      co.children.push(pl);
+    }
+    bn.children.push(co);
+  }
+  return bn;
+}
+
+function makeInfantryBattalion() {
+  return makeBattalion('infantry',
+    60, [{name:'指挥车',count:1},{name:'迫击炮',count:6},{name:'重机枪',count:6},{name:'轻机枪',count:9}],
+    120, [{name:'迫击炮',count:2},{name:'重机枪',count:2},{name:'轻机枪',count:6}],
+    32, [{name:'轻机枪',count:2},{name:'迫击炮',count:1}],
+    9, [{name:'轻机枪',count:1}]);
+}
+function makeMechBattalion() {
+  return makeBattalion('mech',
+    60, [{name:'指挥车',count:2},{name:'重机枪',count:6},{name:'迫击炮',count:6},{name:'轻机枪',count:8}],
+    130, [{name:'步兵战车',count:13},{name:'轻机枪',count:6},{name:'重机枪',count:3},{name:'迫击炮',count:2}],
+    32, [{name:'步兵战车',count:4},{name:'轻机枪',count:3},{name:'反坦克导弹',count:2}],
+    9, [{name:'轻机枪',count:1},{name:'反坦克导弹',count:1}]);
+}
+function makeArmorBattalion() {
+  const bn = newNode('armor','battalion');
+  bn.personnel = 52;
+  bn.equipment = [{name:'指挥车',count:2},{name:'重机枪',count:4},{name:'迫击炮',count:2},{name:'轻机枪',count:6}];
+  for (let c=0;c<3;c++){
+    const co = newNode('armor','company');
+    co.personnel = 14;
+    co.equipment = [{name:'主战坦克',count:14},{name:'轻机枪',count:4},{name:'重机枪',count:1}];
+    for (let p=0;p<3;p++){
+      const pl = newNode('armor','platoon');
+      pl.personnel = 4;
+      pl.equipment = [{name:'主战坦克',count:4},{name:'轻机枪',count:1}];
+      for (let s=0;s<4;s++){
+        const sq = newNode('armor','squad');
+        sq.personnel = 3;
+        sq.equipment = [{name:'主战坦克',count:1}];
+        pl.children.push(sq);
+      }
+      co.children.push(pl);
+    }
+    bn.children.push(co);
+  }
+  return bn;
+}
+function makeAirborneBattalion() {
+  return makeBattalion('airborne',
+    50, [{name:'迫击炮',count:6},{name:'重机枪',count:6},{name:'轻机枪',count:12},{name:'反坦克导弹',count:8}],
+    110, [{name:'迫击炮',count:2},{name:'重机枪',count:2},{name:'轻机枪',count:6},{name:'反坦克导弹',count:2}],
+    30, [{name:'轻机枪',count:2},{name:'反坦克导弹',count:1}],
+    9, [{name:'轻机枪',count:1}]);
+}
+
+function makeArtyBattalion(kind) {
+  const bn = newNode('artillery','battalion');
+  bn.personnel = 30;
+  const eqName = kind === 'mlrs' ? '多管火箭炮' : (kind === 'light' ? '轻型榴弹炮' : '自行火炮');
+  bn.equipment = [{name:'指挥车',count:2},{name:eqName,count:18},{name:'轻机枪',count:12},{name:'迫击炮',count:4}];
+  for (let c=0;c<3;c++){
+    const co = newNode('artillery','company');
+    co.personnel = 60;
+    co.equipment = [{name:eqName,count:6},{name:'轻机枪',count:4}];
+    for (let p=0;p<2;p++){
+      const pl = newNode('artillery','platoon');
+      pl.personnel = 20;
+      pl.equipment = [{name:eqName,count:3},{name:'轻机枪',count:2}];
+      co.children.push(pl);
+    }
+    bn.children.push(co);
+  }
+  return bn;
+}
+function makeAaaBattalion() {
+  const bn = newNode('aaa','battalion');
+  bn.personnel = 40;
+  bn.equipment = [{name:'指挥车',count:2},{name:'自行高炮',count:18},{name:'防空导弹',count:12},{name:'轻机枪',count:8},{name:'重机枪',count:4}];
+  for (let c=0;c<3;c++){
+    const co = newNode('aaa','company');
+    co.personnel = 80;
+    co.equipment = [{name:'自行高炮',count:6},{name:'轻机枪',count:2}];
+    bn.children.push(co);
+  }
+  return bn;
+}
+function makeAntiTankBattalion() {
+  const bn = newNode('anti_tank','battalion');
+  bn.personnel = 40;
+  bn.equipment = [{name:'指挥车',count:2},{name:'反坦克导弹',count:24},{name:'反坦克炮',count:12},{name:'轻机枪',count:8},{name:'重机枪',count:4}];
+  for (let c=0;c<3;c++){
+    const co = newNode('anti_tank','company');
+    co.personnel = 80;
+    co.equipment = [{name:'反坦克导弹',count:8},{name:'轻机枪',count:2}];
+    bn.children.push(co);
+  }
+  return bn;
+}
+function makeReconBattalion(mech) {
+  const bn = newNode(mech ? 'recon_mech' : 'recon', 'battalion');
+  bn.personnel = 50;
+  bn.equipment = [{name:'指挥车',count:3},{name:'装甲侦察车',count:24},{name:'轻机枪',count:12},{name:'重机枪',count:6},{name:'反坦克导弹',count:8},{name:'迫击炮',count:4}];
+  for (let c=0;c<3;c++){
+    const co = newNode(mech ? 'recon_mech' : 'recon', 'company');
+    co.personnel = 90;
+    co.equipment = [{name:'装甲侦察车',count:8},{name:'轻机枪',count:4},{name:'重机枪',count:2},{name:'反坦克导弹',count:2}];
+    bn.children.push(co);
+  }
+  return bn;
+}
+function makeEngineerBattalion() {
+  const bn = newNode('engineer','battalion');
+  bn.personnel = 60;
+  bn.equipment = [{name:'指挥车',count:2},{name:'工程车',count:15},{name:'轻机枪',count:12},{name:'重机枪',count:4},{name:'迫击炮',count:4}];
+  for (let c=0;c<3;c++){
+    const co = newNode('engineer','company');
+    co.personnel = 100;
+    co.equipment = [{name:'工程车',count:5},{name:'轻机枪',count:4},{name:'重机枪',count:2}];
+    bn.children.push(co);
+  }
+  return bn;
+}
+function makeSignalBattalion() {
+  const bn = newNode('signal','battalion');
+  bn.personnel = 50;
+  bn.equipment = [{name:'指挥车',count:4},{name:'通信车',count:18},{name:'轻机枪',count:10},{name:'重机枪',count:4}];
+  for (let c=0;c<3;c++){
+    const co = newNode('signal','company');
+    co.personnel = 80;
+    co.equipment = [{name:'通信车',count:6},{name:'轻机枪',count:2}];
+    bn.children.push(co);
+  }
+  return bn;
+}
+function makeSupplyBattalion() {
+  const bn = newNode('supply','battalion');
+  bn.personnel = 60;
+  bn.equipment = [{name:'指挥车',count:2},{name:'运输卡车',count:60},{name:'油罐车',count:20},{name:'轻机枪',count:12},{name:'重机枪',count:6}];
+  for (let c=0;c<3;c++){
+    const co = newNode('logistics','company');
+    co.personnel = 120;
+    co.equipment = [{name:'运输卡车',count:20},{name:'轻机枪',count:2}];
+    bn.children.push(co);
+  }
+  return bn;
+}
+function makeMedicalBattalion() {
+  const bn = newNode('medical','battalion');
+  bn.personnel = 40;
+  bn.equipment = [{name:'指挥车',count:2},{name:'救护车',count:20},{name:'轻机枪',count:6}];
+  for (let c=0;c<2;c++){
+    const co = newNode('medical','company');
+    co.personnel = 80;
+    co.equipment = [{name:'救护车',count:10},{name:'轻机枪',count:3}];
+    bn.children.push(co);
+  }
+  return bn;
+}
+function makeHqCompany() {
+  const hq = newNode('hq','battalion');
+  hq.personnel = 120;
+  hq.equipment = [{name:'指挥车',count:8},{name:'运输卡车',count:12},{name:'轻机枪',count:20},{name:'重机枪',count:8}];
+  const guard = newNode('infantry','company');
+  guard.personnel = 120;
+  guard.equipment = [{name:'轻机枪',count:12},{name:'重机枪',count:6},{name:'迫击炮',count:4},{name:'装甲输送车',count:6}];
+  hq.children.push(guard);
+  return hq;
+}
+
+function makeRegiment(type, name, hqP, hqE, bnFactory, bnCount) {
+  const r = newNode(type, 'regiment', name);
+  r.personnel = 60;
+  r.equipment = [{name:'指挥车',count:3},{name:'轻机枪',count:8},{name:'重机枪',count:4}];
+  const hq = newNode('hq','battalion');
+  hq.personnel = hqP;
+  hq.equipment = hqE;
+  r.children.push(hq);
+  for (let i = 0; i < bnCount; i++) r.children.push(bnFactory());
+  return r;
+}
+
+function buildEmptyDivision() {
+  uid = 0;
+  return newNode('infantry','division','新建师');
+}
+
+function buildArmorDivision() {
+  uid = 0;
+  const r = newNode('armor','division','第1装甲师');
+  r.personnel = 180;
+  r.equipment = [{name:'指挥车',count:8},{name:'运输卡车',count:20},{name:'轻机枪',count:30},{name:'重机枪',count:12}];
+
+  const artyReg = newNode('artillery','regiment','炮兵团');
+  artyReg.personnel = 60;
+  artyReg.equipment = [{name:'指挥车',count:4},{name:'轻机枪',count:12},{name:'重机枪',count:6}];
+  const artyHq = newNode('hq','battalion');
+  artyHq.personnel = 40;
+  artyHq.equipment = [{name:'指挥车',count:3},{name:'轻机枪',count:6}];
+  artyReg.children.push(artyHq, makeArtyBattalion('spg'), makeArtyBattalion('spg'), makeArtyBattalion('mlrs'));
+
+  r.children.push(
+    makeRegiment('armor','第1装甲团', 40, [{name:'指挥车',count:3},{name:'轻机枪',count:6}], makeArmorBattalion, 3),
+    makeRegiment('armor','第2装甲团', 40, [{name:'指挥车',count:3},{name:'轻机枪',count:6}], makeArmorBattalion, 3),
+    makeRegiment('mech','机步团', 40, [{name:'指挥车',count:3},{name:'轻机枪',count:6}], makeMechBattalion, 3),
+    artyReg,
+    makeAaaBattalion(), makeAntiTankBattalion(), makeReconBattalion(true),
+    makeEngineerBattalion(), makeSignalBattalion(), makeSupplyBattalion(),
+    makeMedicalBattalion(), makeHqCompany()
+  );
+  renumber(r, false);
+  forEachNode(r, n => { if (n !== r && n.children.length) n.collapsed = true; });
+  return r;
+}
+
+function buildInfantryDivision() {
+  uid = 0;
+  const r = newNode('infantry','division','第1步兵师');
+  r.personnel = 180;
+  r.equipment = [{name:'指挥车',count:8},{name:'运输卡车',count:20},{name:'轻机枪',count:30},{name:'重机枪',count:12}];
+
+  r.children.push(
+    makeRegiment('infantry','第1步兵团', 40, [{name:'指挥车',count:3},{name:'轻机枪',count:6}], makeInfantryBattalion, 3),
+    makeRegiment('infantry','第2步兵团', 40, [{name:'指挥车',count:3},{name:'轻机枪',count:6}], makeInfantryBattalion, 3),
+    makeRegiment('infantry','第3步兵团', 40, [{name:'指挥车',count:3},{name:'轻机枪',count:6}], makeInfantryBattalion, 3),
+    makeRegiment('artillery','炮兵团', 40, [{name:'指挥车',count:3},{name:'轻机枪',count:6}], () => makeArtyBattalion('spg'), 3),
+    makeAaaBattalion(), makeAntiTankBattalion(), makeReconBattalion(false),
+    makeEngineerBattalion(), makeSignalBattalion(), makeSupplyBattalion(),
+    makeMedicalBattalion(), makeHqCompany()
+  );
+  renumber(r, false);
+  forEachNode(r, n => { if (n !== r && n.children.length) n.collapsed = true; });
+  return r;
+}
+
+function buildMechDivision() {
+  uid = 0;
+  const r = newNode('mech','division','第1机械化步兵师');
+  r.personnel = 200;
+  r.equipment = [{name:'指挥车',count:10},{name:'运输卡车',count:24},{name:'轻机枪',count:34},{name:'重机枪',count:14}];
+
+  r.children.push(
+    makeRegiment('mech','第1机步团', 40, [{name:'指挥车',count:3},{name:'轻机枪',count:6}], makeMechBattalion, 3),
+    makeRegiment('mech','第2机步团', 40, [{name:'指挥车',count:3},{name:'轻机枪',count:6}], makeMechBattalion, 3),
+    makeRegiment('armor','装甲团', 50, [{name:'指挥车',count:3},{name:'轻机枪',count:6},{name:'重机枪',count:4}], makeArmorBattalion, 3),
+    makeRegiment('artillery','炮兵团', 40, [{name:'指挥车',count:3},{name:'轻机枪',count:6}], () => makeArtyBattalion('spg'), 3),
+    makeAaaBattalion(), makeAntiTankBattalion(), makeReconBattalion(true),
+    makeEngineerBattalion(), makeSignalBattalion(), makeSupplyBattalion(),
+    makeMedicalBattalion(), makeHqCompany()
+  );
+  renumber(r, false);
+  forEachNode(r, n => { if (n !== r && n.children.length) n.collapsed = true; });
+  return r;
+}
+
+function buildAirborneDivision() {
+  uid = 0;
+  const r = newNode('airborne','division','第1空降师');
+  r.personnel = 150;
+  r.equipment = [{name:'指挥车',count:6},{name:'运输卡车',count:16},{name:'轻机枪',count:30},{name:'重机枪',count:10}];
+
+  r.children.push(
+    makeRegiment('airborne','第1空降团', 35, [{name:'指挥车',count:2},{name:'轻机枪',count:6}], makeAirborneBattalion, 3),
+    makeRegiment('airborne','第2空降团', 35, [{name:'指挥车',count:2},{name:'轻机枪',count:6}], makeAirborneBattalion, 3),
+    makeRegiment('airborne','第3空降团', 35, [{name:'指挥车',count:2},{name:'轻机枪',count:6}], makeAirborneBattalion, 3),
+    makeRegiment('artillery','空降炮兵团', 30, [{name:'指挥车',count:2},{name:'轻机枪',count:6}], () => makeArtyBattalion('light'), 3),
+    makeAaaBattalion(), makeAntiTankBattalion(), makeReconBattalion(false),
+    makeEngineerBattalion(), makeSignalBattalion(), makeSupplyBattalion(),
+    makeMedicalBattalion(), makeHqCompany()
+  );
+  renumber(r, false);
+  forEachNode(r, n => { if (n !== r && n.children.length) n.collapsed = true; });
+  return r;
+}
+
+const PRESETS = {
+  blank:    buildEmptyDivision,
+  armor:    buildArmorDivision,
+  infantry: buildInfantryDivision,
+  mech:     buildMechDivision,
+  airborne: buildAirborneDivision,
+};
+
+function computeStats(node) {
+  let personnel = node.personnel || 0;
+  const equipment = {};
+  for (const e of (node.equipment || [])) equipment[e.name] = (equipment[e.name] || 0) + (e.count || 0);
+  for (const c of node.children) {
+    const sub = computeStats(c);
+    personnel += sub.personnel;
+    for (const [k,v] of Object.entries(sub.equipment)) equipment[k] = (equipment[k] || 0) + v;
+  }
+  return { personnel, equipment };
+}
+
+const statsEl = document.getElementById('stats');
+
+function renderEquipStats(equipment) {
+  const keys = Object.keys(equipment).filter(k => equipment[k] > 0).sort();
+  if (!keys.length) return '<div class="stats-empty">无装备</div>';
+  return `<div class="stats-equip">${
+    keys.map(k => `<div class="stats-equip-item"><span>${escapeHtml(k)}</span><span>×${equipment[k]}</span></div>`).join('')
+  }</div>`;
+}
+
+function renderStats() {
+  let html = '';
+  if (selectedId && nodeById[selectedId]) {
+    const node = nodeById[selectedId];
+    const local = computeStats(node);
+    html += `<div class="stats-block highlight">
+      <div class="stats-title">选中：${escapeHtml(node.name)}（含下属）</div>
+      <div class="stats-row personnel"><span>人数</span><b>${local.personnel.toLocaleString()}</b></div>
+      ${renderEquipStats(local.equipment)}
+    </div>`;
+  }
+  if (root) {
+    const global = computeStats(root);
+    html += `<div class="stats-block">
+      <div class="stats-title">全军总计</div>
+      <div class="stats-row personnel"><span>人数</span><b>${global.personnel.toLocaleString()}</b></div>
+      ${renderEquipStats(global.equipment)}
+    </div>`;
+  }
+  statsEl.innerHTML = html || '<div class="empty-tip">暂无数据</div>';
+}
+
+const wrapEl   = document.getElementById('wrap');
+const canvasEl = document.getElementById('canvas');
+
+let zoomLevel = 1;
+const ZOOM_MIN = 0.4, ZOOM_MAX = 2.5, ZOOM_STEP = 0.15;
+
+function applyZoom() {
+  const layerEl = document.getElementById('zoom-layer');
+  const indEl   = document.getElementById('zoom-indicator');
+  if (!canvasEl || !layerEl) return;
+
+  const w = parseFloat(canvasEl.style.width) || canvasEl.offsetWidth;
+  const h = parseFloat(canvasEl.style.height) || canvasEl.offsetHeight;
+
+  canvasEl.style.transform = `scale(${zoomLevel})`;
+  layerEl.style.width  = (w * zoomLevel) + 'px';
+  layerEl.style.height = (h * zoomLevel) + 'px';
+
+  if (indEl) indEl.textContent = Math.round(zoomLevel * 100) + '%';
+}
+
+function setZoom(v) {
+  zoomLevel = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, v));
+  applyZoom();
+}
+const svgEl    = document.getElementById('links');
+const nodesEl  = document.getElementById('nodes');
+const NODE_W = 120, NODE_H = 120, HGAP = 10, VGAP = 20;
+const VGAP_V = 16;
+const PAD_X = 240, PAD_Y = 180;
+
+function render() {
+  function computeBox(node) {
+    const visible = node.collapsed ? [] : node.children;
+    if (visible.length === 0) { node._boxW = NODE_W; node._boxH = NODE_H; return; }
+    for (const c of visible) computeBox(c);
+
+    if (node.layout === 'v') {
+      let maxW = NODE_W, totalH = NODE_H;
+      for (const c of visible) { maxW = Math.max(maxW, c._boxW); totalH += VGAP_V + c._boxH; }
+      node._boxW = maxW; node._boxH = totalH;
+    } else {
+      let totalW = 0, maxH = 0;
+      for (const c of visible) { totalW += c._boxW; maxH = Math.max(maxH, c._boxH); }
+      totalW += (visible.length - 1) * HGAP;
+      node._boxW = Math.max(NODE_W, totalW);
+      node._boxH = NODE_H + VGAP + maxH;
+    }
+  }
+  computeBox(root);
+
+  function assignPos(node, left, top) {
+    const visible = node.collapsed ? [] : node.children;
+    node.cx = left + node._boxW / 2;
+    node.y = top;
+    if (visible.length === 0) return;
+
+    if (node.layout === 'v') {
+      let childTop = top + NODE_H + VGAP_V;
+      for (const c of visible) {
+        assignPos(c, node.cx - c._boxW / 2, childTop);
+        childTop += c._boxH + VGAP_V;
+      }
+    } else {
+      const totalW = visible.reduce((s, c) => s + c._boxW, 0) + (visible.length - 1) * HGAP;
+      let childLeft = node.cx - totalW / 2;
+      const childTop = top + NODE_H + VGAP;
+      for (const c of visible) {
+        assignPos(c, childLeft, childTop);
+        childLeft += c._boxW + HGAP;
+      }
+    }
+  }
+  assignPos(root, 0, 0);
+
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  forEachVisibleNode(root, n => {
+    minX = Math.min(minX, n.cx - NODE_W/2);
+    maxX = Math.max(maxX, n.cx + NODE_W/2);
+    minY = Math.min(minY, n.y);
+    maxY = Math.max(maxY, n.y + NODE_H);
+  });
+
+  const contentW = maxX - minX;
+  const contentH = maxY - minY;
+  const wrapW = wrapEl.clientWidth;
+  const wrapH = wrapEl.clientHeight;
+  const offsetX = Math.max(PAD_X, (wrapW - contentW) / 2);
+  const offsetY = Math.max(PAD_Y, (wrapH - contentH) / 2);
+  const X = n => n.cx - minX + offsetX;
+  const Y = n => n.y - minY + offsetY;
+
+  const canvasW = Math.max(contentW + PAD_X * 2, wrapW);
+  const canvasH = Math.max(contentH + PAD_Y * 2, wrapH);
+  canvasEl.style.width = canvasW + 'px';
+  canvasEl.style.height = canvasH + 'px';
+  svgEl.setAttribute('width', canvasW);
+  svgEl.setAttribute('height', canvasH);
+  svgEl.setAttribute('viewBox', `0 0 ${canvasW} ${canvasH}`);
+
+  const linkColor = getComputedStyle(document.documentElement).getPropertyValue('--link-color').trim() || '#9db4d4';
+  let d = '';
+  forEachVisibleNode(root, n => {
+    if (n.collapsed || !n.children.length) return;
+    const px = X(n), pyBottom = Y(n) + NODE_H;
+    if (n.layout === 'v') {
+      for (const c of n.children) d += `M${px} ${pyBottom} L${px} ${Y(c)} `;
+    } else {
+      const midY = pyBottom + VGAP / 2;
+      const first = n.children[0], last = n.children[n.children.length - 1];
+      d += `M${px} ${pyBottom} L${px} ${midY} `;
+      d += `M${X(first)} ${midY} L${X(last)} ${midY} `;
+      for (const c of n.children) d += `M${X(c)} ${midY} L${X(c)} ${Y(c)} `;
+    }
+  });
+  svgEl.innerHTML = `<path d="${d}" fill="none" stroke="${linkColor}" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"/>`;
+
+  nodeById = {};
+  forEachNode(root, n => nodeById[n.id] = n);
+
+  const frag = document.createDocumentFragment();
+  forEachVisibleNode(root, n => {
+    const el = document.createElement('div');
+    el.className = 'node' + (n.id === selectedId ? ' selected' : '');
+    el.dataset.id = n.id;
+    el.style.left = X(n) + 'px';
+    el.style.top  = Y(n) + 'px';
+
+    let badgeText = '';
+    if (SHOW_NODE_STATS) {
+      const local = computeStats(n);
+      const equipTotal = Object.values(local.equipment).reduce((a,b)=>a+b,0);
+      const showP = local.personnel > 0, showE = equipTotal > 0;
+      const pStr = fmtNum(local.personnel);
+      const eStr = fmtNum(equipTotal);
+      if (showP && showE) badgeText = `👤${pStr} 🔧${eStr}`;
+      else if (showP) badgeText = `👤${pStr}`;
+      else if (showE) badgeText = `🔧${eStr}`;
+    }
+
+    const hasCh = n.children.length > 0;
+    const cBtn = hasCh ? `<div class="collapse-btn${n.collapsed ? ' collapsed' : ''}" title="${n.collapsed ? '展开下属' : '折叠下属'}">${n.collapsed ? '+' : '−'}</div>` : '';
+    const lBtn = hasCh ? `<div class="layout-btn${n.layout === 'v' ? ' v' : ''}" title="${n.layout === 'v' ? '当前纵向，点击切换横向' : '当前横向，点击切换纵向'}">${n.layout === 'v' ? '⇆' : '⇅'}</div>` : '';
+    const rIcon = n.remark ? `<div class="remark-icon" title="${escapeHtml(n.remark)}">📝</div>` : '';
+
+    el.innerHTML =
+      `<div class="sym">${buildSymbol(n.type, n.echelon, n.custom)}</div>` +
+      `<div class="label">${escapeHtml(n.name)}</div>` +
+      (badgeText ? `<div class="badge">${badgeText}</div>` : '') +
+      rIcon + lBtn + cBtn;
+
+    el.addEventListener('pointerdown', e => startDrag(e, n, el));
+    el.addEventListener('dblclick', e => {
+      if (e.target.closest('.collapse-btn') || e.target.closest('.layout-btn')) return;
+      renameNode(n);
+    });
+
+    const cbtn = el.querySelector('.collapse-btn');
+    if (cbtn) {
+      cbtn.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); });
+      cbtn.addEventListener('click', e => {
+        e.stopPropagation();
+        n.collapsed = !n.collapsed;
+        render();
+        if (n.id === selectedId) fillPanel(n);
+      });
+    }
+    const lbtn = el.querySelector('.layout-btn');
+    if (lbtn) {
+      lbtn.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); });
+      lbtn.addEventListener('click', e => {
+        e.stopPropagation();
+        n.layout = n.layout === 'v' ? 'h' : 'v';
+        render();
+        if (n.id === selectedId) fillPanel(n);
+      });
+    }
+
+    frag.appendChild(el);
+  });
+  nodesEl.innerHTML = '';
+  nodesEl.appendChild(frag);
+  applyZoom();
+}
+
+function updateNodeLabel(n) {
+  const el = nodesEl.querySelector(`.node[data-id="${n.id}"] .label`);
+  if (el) el.textContent = n.name;
+}
+
+let clipboardNode = null;
+
+function copySelected() {
+  if (!selectedId || !nodeById[selectedId]) { toast('未选中任何单位', true); return; }
+  const node = nodeById[selectedId];
+  clipboardNode = {
+    type: node.type,
+    echelon: node.echelon,
+    remark: node.remark || '',
+    layout: node.layout || 'h',
+    personnel: node.personnel || 0,
+    equipment: JSON.parse(JSON.stringify(node.equipment || [])),
+    children: [],
+  };
+  toast('已复制：' + node.name);
+}
+
+function pasteClipboard() {
+  if (!clipboardNode) { toast('剪贴板为空，先按 Ctrl+C 复制', true); return; }
+  pushHistory();
+  const parent = (selectedId && nodeById[selectedId]) ? nodeById[selectedId] : root;
+  const copy = cloneSubtree(clipboardNode);
+  parent.children.push(copy);
+  if (parent.collapsed) parent.collapsed = false;
+  renumber(root, false);
+  render();
+  selectNode(copy);
+  toast('已粘贴到：' + parent.name);
+}
+
+let dropInfo = null;
+const libEl = document.querySelector('aside.lib');
+
+function isOverLib(x, y) {
+  const r = libEl.getBoundingClientRect();
+  return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+}
+
+function startDrag(e, node, el) {
+  if (e.button !== 0) return;
+  const draggable = node !== root;
+  const startX = e.clientX, startY = e.clientY;
+  let ghost = null, started = false;
+
+  const onMove = ev => {
+    if (!draggable) return;
+    const dx = ev.clientX - startX, dy = ev.clientY - startY;
+    if (!started && Math.hypot(dx, dy) > 6) {
+      started = true;
+      el.classList.add('dragging');
+      ghost = el.cloneNode(true);
+      ghost.classList.add('ghost');
+      ghost.classList.remove('selected', 'dragging');
+      ghost.querySelectorAll('.collapse-btn, .layout-btn, .badge, .remark-icon').forEach(b => b.remove());
+      document.body.appendChild(ghost);
+    }
+    if (!started) return;
+    ghost.style.left = (ev.clientX - NODE_W/2) + 'px';
+    ghost.style.top  = (ev.clientY - NODE_H/2) + 'px';
+
+    if (isOverLib(ev.clientX, ev.clientY)) {
+      libEl.classList.add('drag-over-delete');
+      clearDropClasses();
+      dropInfo = null;
+    } else {
+      libEl.classList.remove('drag-over-delete');
+      updateDropTarget(ev.clientX, ev.clientY, node);
+    }
+  };
+
+  const onUp = ev => {
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    if (ghost) ghost.remove();
+    el.classList.remove('dragging');
+    clearDropClasses();
+    libEl.classList.remove('drag-over-delete');
+
+    if (!started) {
+      selectNode(node);
+    } else if (ev && isOverLib(ev.clientX, ev.clientY) && node !== root) {
+      pushHistory();
+      const p = findParent(node);
+      if (p) {
+        p.children.splice(p.children.indexOf(node), 1);
+        if (selectedId === node.id) selectedId = null;
+        renumber(root, false);
+        render();
+        if (!selectedId) emptyPanel();
+        renderStats();
+        toast('已删除：' + node.name);
+      }
+    } else if (dropInfo) {
+      performDrop(node, dropInfo.node, dropInfo.mode);
+    }
+    dropInfo = null;
+  };
+
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
+}
+
+function updateDropTarget(x, y, draggedNode) {
+  clearDropClasses(); dropInfo = null;
+  const hit = document.elementFromPoint(x, y);
+  const targetEl = hit ? hit.closest('.node') : null;
+  if (!targetEl) return;
+  const target = nodeById[targetEl.dataset.id];
+  if (!target) return;
+  if (draggedNode && (target === draggedNode || isInSubtree(target, draggedNode))) return;
+  const r = targetEl.getBoundingClientRect();
+  const rel = (y - r.top) / r.height;
+  let mode;
+  if (rel < 0.3) mode = 'before';
+  else if (rel > 0.7) mode = 'after';
+  else mode = 'child';
+  if (target === root) mode = 'child';
+  targetEl.classList.add('drop-' + mode);
+  dropInfo = { node: target, mode };
+}
+
+function clearDropClasses() {
+  nodesEl.querySelectorAll('.drop-before, .drop-after, .drop-child')
+    .forEach(el => el.classList.remove('drop-before','drop-after','drop-child'));
+}
+
+function insertUnitAt(unit, target, mode) {
+  pushHistory();
+  if (mode === 'child') {
+    target.children.push(unit);
+    target.collapsed = false;
+  } else {
+    const tp = findParent(target);
+    if (!tp) target.children.push(unit);
+    else {
+      const i = tp.children.indexOf(target);
+      tp.children.splice(mode === 'before' ? i : i+1, 0, unit);
+    }
+  }
+  renumber(root, false);
+  render();
+  selectNode(unit);
+}
+
+function performDrop(node, target, mode) {
+  const parent = findParent(node);
+  if (!parent) return;
+  pushHistory();
+  parent.children.splice(parent.children.indexOf(node), 1);
+  insertUnitAtRaw(node, target, mode);
+  renumber(root, false);
+  render();
+  selectNode(node);
+}
+
+function insertUnitAtRaw(unit, target, mode) {
+  if (mode === 'child') {
+    target.children.push(unit);
+    target.collapsed = false;
+  } else {
+    const tp = findParent(target);
+    if (!tp) target.children.push(unit);
+    else {
+      const i = tp.children.indexOf(target);
+      tp.children.splice(mode === 'before' ? i : i+1, 0, unit);
+    }
+  }
+}
+
+const libGrid = document.getElementById('lib-grid');
+const libEchelonSel = document.getElementById('lib-echelon');
+
+ECHELON_ORDER.forEach(k => {
+  const o = document.createElement('option');
+  o.value = k;
+  o.textContent = ECHELONS[k].name;
+  libEchelonSel.appendChild(o);
+});
+libEchelonSel.value = 'battalion';
+
+const CATS = [
+  { k:'all',      zh:'全部' },
+  { k:'maneuver', zh:'机动' },
+  { k:'fire',     zh:'火力' },
+  { k:'air',      zh:'航空' },
+  { k:'support',  zh:'保障' },
+  { k:'custom',   zh:'自定义' },
+];
+
+const libTabs   = document.getElementById('lib-tabs');
+const libSearch = document.getElementById('lib-search');
+let libCat   = 'all';
+let libQuery = '';
+
+CATS.forEach(c => {
+  const b = document.createElement('button');
+  b.className = 'cat-tab' + (c.k === 'all' ? ' active' : '');
+  b.dataset.cat = c.k;
+  b.textContent = c.zh;
+  b.addEventListener('click', () => {
+    libCat = c.k;
+    libTabs.querySelectorAll('.cat-tab').forEach(x =>
+      x.classList.toggle('active', x.dataset.cat === c.k));
+    buildLibGrid();
+  });
+  libTabs.appendChild(b);
+});
+
+libSearch.addEventListener('input', () => {
+  libQuery = libSearch.value.trim().toLowerCase();
+  buildLibGrid();
+});
+
+function buildLibGrid() {
+  libGrid.innerHTML = '';
+  const ech = libEchelonSel.value;
+  const keys = Object.keys(TYPES).filter(k => {
+    const t = TYPES[k];
+    if (libCat !== 'all' && (t.cat || '') !== libCat) return false;
+    if (!libQuery) return true;
+    return (t.name || '').toLowerCase().includes(libQuery) || k.toLowerCase().includes(libQuery);
+  });
+  if (!keys.length) {
+    libGrid.innerHTML = '<div class="lib-empty">未找到匹配兵种<br>试试其它关键词，或点「全部」</div>';
+    return;
+  }
+  keys.forEach(type => {
+    const item = document.createElement('div');
+    item.className = 'lib-item';
+    item.dataset.type = type;
+    item.title = TYPES[type].name;
+    item.innerHTML = `<div class="sym">${buildSymbol(type, ech)}</div><span>${TYPES[type].name}</span>`;
+
+    if (TYPES[type].isCustom) {
+      const del = document.createElement('div');
+      del.className = 'lib-del-btn';
+      del.textContent = '×';
+      del.title = '删除该自定义兵种';
+      del.addEventListener('pointerdown', e => { e.stopPropagation(); });
+      del.addEventListener('click', e => {
+        e.stopPropagation();
+        deleteCustomType(type);
+      });
+      item.appendChild(del);
+    }
+
+    item.addEventListener('pointerdown', e => startLibraryDrag(e, type, item));
+    item.addEventListener('click', () => {
+      if (item.dataset.dragged === '1') { item.dataset.dragged = ''; return; }
+      quickAdd(type);
+    });
+    libGrid.appendChild(item);
+  });
+}
+
+function refreshLibSymbols() {
+  libGrid.querySelectorAll('.lib-item').forEach(item => {
+    const t = item.dataset.type;
+    item.querySelector('.sym').innerHTML = buildSymbol(t, libEchelonSel.value);
+  });
+}
+
+buildLibGrid();
+libEchelonSel.addEventListener('change', refreshLibSymbols);
+
+function deleteCustomType(key) {
+  const def = TYPES[key];
+  if (!def || !def.isCustom) return;
+  if (!confirm(`删除自定义兵种「${def.name}」？\n使用该兵种的单位将变为步兵。`)) return;
+
+  pushHistory();
+  let count = 0;
+  forEachNode(root, n => {
+    if (n.type === key) { n.type = 'infantry'; n.custom = null; count++; }
+  });
+
+  delete TYPES[key];
+  const all = getCustomTypes();
+  delete all[key];
+  setCustomTypes(all);
+
+  render();
+  buildLibGrid();
+  if (selectedId && nodeById[selectedId]) fillPanel(nodeById[selectedId]);
+  renderStats();
+  toast(count ? `已删除，${count} 个单位变为步兵` : '已删除');
+}
+
+const customModal     = document.getElementById('custom-modal');
+const customPreviewEl = document.getElementById('custom-preview');
+const customMainEl    = document.getElementById('custom-main');
+const customS1El      = document.getElementById('custom-s1');
+const customS2El      = document.getElementById('custom-s2');
+const customNameInp   = document.getElementById('custom-name');
+
+let customDraft = { main: [], s1: [], s2: [] };
+
+document.getElementById('lib-new-btn').addEventListener('click', () => {
+  customDraft = { main: [], s1: [], s2: [] };
+  customNameInp.value = '自定义兵种';
+  renderCustomModal();
+  customModal.classList.add('show');
+  setTimeout(() => customNameInp.select(), 100);
+});
+
+document.getElementById('custom-cancel').addEventListener('click', () => {
+  customModal.classList.remove('show');
+});
+
+function renderCustomModal() {
+  customPreviewEl.innerHTML = renderCustomPreview();
+  renderPickRow(customMainEl, 'main', ICON_PARTS);
+  renderPickRow(customS1El,   's1',   SECTOR1_PARTS);
+  renderPickRow(customS2El,   's2',   SECTOR2_PARTS);
+}
+
+function renderPickRow(container, layer, lib) {
+  container.innerHTML = '';
+  Object.keys(lib).forEach(part => {
+    const card = document.createElement('div');
+    card.className = 'custom-pick-item' + (customDraft[layer].includes(part) ? ' on' : '');
+    card.innerHTML = renderPartPreview(layer, part) +
+      '<div class="nm">' + (CHIP_LABELS[part] || part) + '</div>';
+    card.addEventListener('click', () => {
+      const arr = customDraft[layer];
+      const i = arr.indexOf(part);
+      if (i >= 0) arr.splice(i, 1);
+      else arr.push(part);
+      renderCustomModal();
+    });
+    container.appendChild(card);
+  });
+}
+
+function renderPartPreview(layer, part) {
+  const { ink, paper } = getThemeColors();
+  const drawFn = layer === 'main' ? ICON_PARTS[part]
+               : layer === 's1'   ? SECTOR1_PARTS[part]
+               :                    SECTOR2_PARTS[part];
+  if (!drawFn) return '';
+  return '<svg viewBox="0 22 72 48" width="52" height="38" xmlns="http://www.w3.org/2000/svg">' +
+    '<rect x="2" y="23.5" width="68" height="45" fill="' + paper + '" stroke="' + ink + '" stroke-width="1.5" rx="1.5"/>' +
+    drawFn(ink, paper) +
+    '</svg>';
+}
+
+function renderCustomPreview() {
+  const { ink, paper } = getThemeColors();
+  const mainSvg = customDraft.main.map(p => ICON_PARTS[p]    ? ICON_PARTS[p](ink, paper)    : '').join('');
+  const s1Svg   = customDraft.s1.map(p   => SECTOR1_PARTS[p] ? SECTOR1_PARTS[p](ink, paper) : '').join('');
+  const s2Svg   = customDraft.s2.map(p   => SECTOR2_PARTS[p] ? SECTOR2_PARTS[p](ink, paper) : '').join('');
+  return '<svg viewBox="0 0 72 92" width="90" height="115" xmlns="http://www.w3.org/2000/svg">' +
+    '<rect x="2" y="22" width="68" height="48" fill="' + paper + '" stroke="' + ink + '" stroke-width="2.5" rx="2"/>' +
+    '<line x1="36" y1="6" x2="36" y2="14" stroke="' + ink + '" stroke-width="2"/>' +
+    '<circle cx="30" cy="11" r="2.5" fill="' + ink + '"/>' +
+    '<circle cx="36" cy="11" r="2.5" fill="' + ink + '"/>' +
+    '<circle cx="42" cy="11" r="2.5" fill="' + ink + '"/>' +
+    mainSvg + s1Svg + s2Svg +
+    '</svg>';
+}
+
+document.getElementById('custom-confirm').addEventListener('click', () => {
+  const name = customNameInp.value.trim();
+  if (!name) { customNameInp.focus(); return; }
+  if (!customDraft.main.length && !customDraft.s1.length && !customDraft.s2.length) {
+    alert('请至少选择一个部件');
+    return;
+  }
+
+  const key = 'custom_' + Date.now().toString(36);
+  const def = {
+    name: name.slice(0, 20),
+    cat: 'custom',
+    main: [...customDraft.main],
+    s1:   [...customDraft.s1],
+    s2:   [...customDraft.s2],
+    isCustom: true
+  };
+
+  const all = getCustomTypes();
+  all[key] = def;
+  setCustomTypes(all);
+  TYPES[key] = def;
+
+  customModal.classList.remove('show');
+
+  libCat = 'custom';
+  libTabs.querySelectorAll('.cat-tab').forEach(x =>
+    x.classList.toggle('active', x.dataset.cat === 'custom'));
+  buildLibGrid();
+  toast('已添加：' + def.name);
+});
+
+function startLibraryDrag(e, type, item) {
+  if (e.button !== 0) return;
+
+  const isMobile = window.innerWidth <= 900;
+
+  const echelon = libEchelonSel.value;
+  const preview = `${TYPES[type].name}${ECHELONS[echelon].name}`;
+  const startX = e.clientX, startY = e.clientY;
+  let ghost = null, started = false;
+  let longPressTimer = null;
+  let longPressReady = false;
+
+  const beginDrag = () => {
+  started = true;
+  if (isMobile && document.body.classList.contains('mobile-lib-open')) {
+    closeMobileDrawers();
+  }
+  ghost = document.createElement('div');
+  ghost.className = 'node ghost';
+  ghost.innerHTML = `<div class="sym">${buildSymbol(type, echelon)}</div><div class="label">${escapeHtml(preview)}</div>`;
+  document.body.appendChild(ghost);
+};
+
+  if (isMobile) {
+    item.classList.add('long-pressing');
+    longPressTimer = setTimeout(() => {
+      longPressReady = true;
+      item.classList.remove('long-pressing');
+      if (navigator.vibrate) navigator.vibrate(20);
+      beginDrag();
+      if (ghost) {
+        ghost.style.left = (startX - NODE_W/2) + 'px';
+        ghost.style.top  = (startY - NODE_H/2) + 'px';
+      }
+    }, 450);
+  }
+
+  const onMove = ev => {
+    const dist = Math.hypot(ev.clientX - startX, ev.clientY - startY);
+
+    if (isMobile && !longPressReady) {
+      if (dist > 8 && longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+        item.classList.remove('long-pressing');
+      }
+      return;
+    }
+
+    if (!isMobile && !started && dist > 6) {
+      started = true;
+      beginDrag();
+    }
+
+    if (!started || !ghost) return;
+    ghost.style.left = (ev.clientX - NODE_W/2) + 'px';
+    ghost.style.top  = (ev.clientY - NODE_H/2) + 'px';
+    updateDropTarget(ev.clientX, ev.clientY, null);
+  };
+
+  const onUp = ev => {
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+    item.classList.remove('long-pressing');
+    if (ghost) ghost.remove();
+    clearDropClasses();
+
+    if (started) {
+      item.dataset.dragged = '1';
+      if (dropInfo) {
+        const unit = newNode(type, echelon);
+        insertUnitAt(unit, dropInfo.node, dropInfo.mode);
+      } else {
+        const el = document.elementFromPoint(ev.clientX, ev.clientY);
+        if (el && wrapEl.contains(el)) {
+          pushHistory();
+          const unit = newNode(type, echelon);
+          root.children.push(unit);
+          root.collapsed = false;
+          renumber(root, false);
+          render();
+          selectNode(unit);
+        }
+      }
+    }
+    dropInfo = null;
+  };
+
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
+}
+
+function quickAdd(type) {
+  pushHistory();
+  const unit = newNode(type, libEchelonSel.value);
+  const parent = (selectedId && nodeById[selectedId]) ? nodeById[selectedId] : root;
+  parent.children.push(unit);
+  if (parent.collapsed) parent.collapsed = false;
+  renumber(root, false);
+  render();
+  selectNode(unit);
+}
+
+const panelEl = document.getElementById('panel');
+
+function selectNode(node) {
+  selectedId = node.id;
+  render();
+  fillPanel(node);
+  renderStats();
+  const el = nodesEl.querySelector(`.node[data-id="${node.id}"]`);
+  if (el && el.scrollIntoView) el.scrollIntoView({ block:'nearest', inline:'nearest' });
+}
+
+function fillPanel(node) {
+  const typeOpts = Object.keys(TYPES).map(k => `<option value="${k}"${k===node.type?' selected':''}>${TYPES[k].name}</option>`).join('');
+  const echOpts = ECHELON_ORDER.map(k => `<option value="${k}"${k===node.echelon?' selected':''}>${ECHELONS[k].name}</option>`).join('');
+  const hasCh = node.children.length > 0;
+  const cBtn = hasCh ? `<button id="btn-toggle-collapse" class="${node.collapsed?'warn':''}">${node.collapsed?'＋ 展开下属':'－ 折叠下属'}</button>` : '';
+  const lBtn = hasCh ? `<button id="btn-toggle-layout" class="${node.layout==='v'?'sync':''}">${node.layout==='v'?'⇆ 改为横向排列':'⇅ 改为纵向排列'}</button>` : '';
+
+  const parent = findParent(node);
+  let siblingCount = 0;
+  if (parent) {
+    siblingCount = parent.children.filter(c => c !== node && c.type === node.type && c.echelon === node.echelon).length;
+  }
+  const syncBtn = siblingCount > 0
+    ? `<button id="btn-sync" class="sync">⇄ 同步到 ${siblingCount} 个同级同类单位</button>`
+    : '';
+
+  panelEl.innerHTML = `
+    <div class="field">
+      <label>部队番号</label>
+      <input id="f-name" type="text" value="${escapeHtml(node.name)}" placeholder="输入番号">
+    </div>
+    <div class="field">
+      <label>兵种</label>
+      <select id="f-type">${typeOpts}</select>
+    </div>
+    <div class="field">
+      <label>编制层级</label>
+      <select id="f-echelon">${echOpts}</select>
+    </div>
+    <div class="field">
+      <label>备注</label>
+      <textarea id="f-remark" placeholder="添加备注...">${escapeHtml(node.remark || '')}</textarea>
+    </div>
+    <div class="field">
+      <label>本级人数</label>
+      <input id="f-personnel" type="number" min="0" step="1" value="${node.personnel || 0}" placeholder="0">
+    </div>
+    <div class="field">
+      <label>本级装备</label>
+      <div id="equip-list" class="equip-list"></div>
+      <div class="equip-add">
+        <input id="equip-name" type="text" placeholder="装备名称">
+        <input id="equip-count" type="number" min="1" step="1" placeholder="数量">
+        <button id="equip-add-btn" type="button" title="添加装备">＋</button>
+      </div>
+    </div>
+    <div class="btns">
+      <button id="btn-add" class="primary">＋ 添加下属单位</button>
+      ${syncBtn}
+      ${lBtn}
+      ${cBtn}
+      <button id="btn-del" class="danger"${node === root ? ' disabled style="opacity:.4;cursor:not-allowed"' : ''}>删除该单位</button>
+    </div>
+    <div class="legend">
+      <b>快捷键</b><br>
+      <span class="k">Space</span>折叠 / 展开选中单位<br>
+      <span class="k">Del</span>删除选中单位<br>
+      <span class="k">N</span>新建下属单位<br>
+      <span class="k">↵</span>重命名选中单位<br>
+      <span class="k">Ctrl+C</span>复制选中单位（含下属）<br>
+      <span class="k">Ctrl+V</span>粘贴到选中单位下<br>
+      <span class="k">Ctrl+Z</span>撤销上一步操作<br>
+      <span class="k">Esc</span>取消选中<br>
+      <span class="k">Tab</span>下一个 / <span class="k">⇧Tab</span> 上一个<br>
+      <span class="k">←→</span>同级切换 &nbsp; <span class="k">↑</span>上级 &nbsp; <span class="k">↓</span>下级<br>
+      <span class="k">Ctrl+R</span>自动重新编号
+    </div>
+  `;
+
+  const nameInput = document.getElementById('f-name');
+  const typeSel   = document.getElementById('f-type');
+  const echSel    = document.getElementById('f-echelon');
+  const remarkIn  = document.getElementById('f-remark');
+  const persInput = document.getElementById('f-personnel');
+
+  nameInput.addEventListener('input', e => {
+    node.name = e.target.value;
+    node.customName = true;
+    updateNodeLabel(node);
+    renderStats();
+  });
+  typeSel.addEventListener('change', e => {
+    pushHistory();
+    node.type = e.target.value;
+    node.custom = null;
+    renumber(root, false);
+    render(); fillPanel(node); renderStats();
+  });
+  echSel.addEventListener('change', e => {
+    pushHistory();
+    node.echelon = e.target.value;
+    renumber(root, false);
+    render(); fillPanel(node); renderStats();
+  });
+  remarkIn.addEventListener('input', e => {
+    node.remark = e.target.value;
+    const el = nodesEl.querySelector(`.node[data-id="${node.id}"]`);
+    if (el) {
+      let icon = el.querySelector('.remark-icon');
+      if (node.remark) {
+        if (!icon) {
+          icon = document.createElement('div');
+          icon.className = 'remark-icon';
+          icon.textContent = '📝';
+          el.appendChild(icon);
+        }
+        icon.title = node.remark;
+      } else if (icon) icon.remove();
+    }
+  });
+  persInput.addEventListener('input', e => {
+    node.personnel = Math.max(0, parseInt(e.target.value, 10) || 0);
+    refreshNodeBadges();
+    renderStats();
+  });
+
+  renderEquipEditor(node);
+
+  document.getElementById('equip-add-btn').addEventListener('click', () => {
+    const nameInp = document.getElementById('equip-name');
+    const countInp = document.getElementById('equip-count');
+    const name = nameInp.value.trim();
+    const count = parseInt(countInp.value, 10) || 0;
+    if (!name || count <= 0) { countInp.focus(); return; }
+    if (!node.equipment) node.equipment = [];
+    const existing = node.equipment.find(e => e.name === name);
+    if (existing) existing.count += count;
+    else node.equipment.push({ name, count });
+    nameInp.value = ''; countInp.value = ''; nameInp.focus();
+    renderEquipEditor(node);
+    refreshNodeBadges();
+    renderStats();
+  });
+
+  ['equip-name', 'equip-count'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); document.getElementById('equip-add-btn').click(); }
+    });
+  });
+
+  document.getElementById('btn-add').addEventListener('click', () => addChild(node));
+
+  const syncEl = document.getElementById('btn-sync');
+  if (syncEl) syncEl.addEventListener('click', () => syncToSiblings(node));
+
+  const toggleBtn = document.getElementById('btn-toggle-collapse');
+  if (toggleBtn) toggleBtn.addEventListener('click', () => {
+    node.collapsed = !node.collapsed;
+    render(); fillPanel(node);
+  });
+
+  const layoutBtn = document.getElementById('btn-toggle-layout');
+  if (layoutBtn) layoutBtn.addEventListener('click', () => {
+    node.layout = node.layout === 'v' ? 'h' : 'v';
+    render(); fillPanel(node);
+  });
+
+  const delBtn = document.getElementById('btn-del');
+  if (node !== root) delBtn.addEventListener('click', () => deleteNode(node));
+}
+
+const syncModal = document.getElementById('sync-modal');
+const syncModalBody = document.getElementById('sync-modal-body');
+let syncPendingNode = null;
+
+function syncToSiblings(node) {
+  const parent = findParent(node);
+  if (!parent) { toast('根节点无法同步', true); return; }
+  const siblings = parent.children.filter(c =>
+    c !== node && c.type === node.type && c.echelon === node.echelon
+  );
+  if (!siblings.length) { toast('未找到同级同类单位', true); return; }
+
+  const desc = countDescendants(node);
+  syncModalBody.innerHTML =
+    `找到 <b>${siblings.length}</b> 个同级同类单位：<br>` +
+    siblings.map(s => '· ' + escapeHtml(s.name)).join('<br>') +
+    `<br><br>选择同步方式：<br>` +
+    `· <b>仅同步本级</b>：只同步人数和装备，不改变它们的下属部队<br>` +
+    `· <b>含下属完整同步</b>：把「${escapeHtml(node.name)}」的完整编制（含 <b>${desc}</b> 个下属单位）覆盖过去，兄弟单位的下属部队会被替换`;
+
+  syncPendingNode = node;
+  syncModal.classList.add('show');
+}
+
+function doSyncToSiblings(includeChildren) {
+  const node = syncPendingNode;
+  syncModal.classList.remove('show');
+  syncPendingNode = null;
+  if (!node) return;
+
+  const parent = findParent(node);
+  if (!parent) return;
+  const siblings = parent.children.filter(c =>
+    c !== node && c.type === node.type && c.echelon === node.echelon
+  );
+  if (!siblings.length) return;
+
+  pushHistory();
+
+  for (const s of siblings) {
+    s.personnel = node.personnel;
+    s.equipment = JSON.parse(JSON.stringify(node.equipment || []));
+    if (includeChildren) {
+      const keepName = s.name;
+      const keepCustom = s.customName;
+      s.children = node.children.map(cloneSubtree);
+      s.collapsed = node.collapsed;
+      s.layout = node.layout;
+      s.name = keepName;
+      s.customName = keepCustom;
+    }
+  }
+  render();
+  if (selectedId && nodeById[selectedId]) fillPanel(nodeById[selectedId]);
+  renderStats();
+  toast(includeChildren
+    ? `已同步完整编制到 ${siblings.length} 个单位`
+    : `已同步数据到 ${siblings.length} 个单位`);
+}
+
+document.getElementById('sync-cancel').addEventListener('click', () => {
+  syncModal.classList.remove('show');
+  syncPendingNode = null;
+});
+document.getElementById('sync-self').addEventListener('click', () => doSyncToSiblings(false));
+document.getElementById('sync-all').addEventListener('click', () => doSyncToSiblings(true));
+
+function renderEquipEditor(node) {
+  const list = document.getElementById('equip-list');
+  if (!list) return;
+  const eqs = node.equipment || [];
+  if (!eqs.length) { list.innerHTML = '<div class="stats-empty">尚未添加装备</div>'; return; }
+  list.innerHTML = eqs.map((e, i) => `
+    <div class="equip-item">
+      <span class="name" title="${escapeHtml(e.name)}">${escapeHtml(e.name)}</span>
+      <input type="number" min="0" step="1" value="${e.count}" data-idx="${i}" class="equip-count-input">
+      <button class="del" data-idx="${i}" title="删除">✕</button>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.equip-count-input').forEach(inp => {
+    inp.addEventListener('input', ev => {
+      const idx = parseInt(ev.target.dataset.idx, 10);
+      node.equipment[idx].count = Math.max(0, parseInt(ev.target.value, 10) || 0);
+      refreshNodeBadges(); renderStats();
+    });
+  });
+  list.querySelectorAll('.del').forEach(btn => {
+    btn.addEventListener('click', ev => {
+      const idx = parseInt(ev.target.dataset.idx, 10);
+      node.equipment.splice(idx, 1);
+      renderEquipEditor(node); refreshNodeBadges(); renderStats();
+    });
+  });
+}
+
+function refreshNodeBadges() {
+  forEachVisibleNode(root, n => {
+    const el = nodesEl.querySelector(`.node[data-id="${n.id}"]`);
+    if (!el) return;
+    el.querySelectorAll('.badge').forEach(b => b.remove());
+    if (!SHOW_NODE_STATS) return;
+    const local = computeStats(n);
+    const equipTotal = Object.values(local.equipment).reduce((a,b)=>a+b,0);
+    const showP = local.personnel > 0, showE = equipTotal > 0;
+    const pStr = fmtNum(local.personnel);
+    const eStr = fmtNum(equipTotal);
+    let text = '';
+    if (showP && showE) text = `👤${pStr} 🔧${eStr}`;
+    else if (showP) text = `👤${pStr}`;
+    else if (showE) text = `🔧${eStr}`;
+    if (text) {
+      const b = document.createElement('div');
+      b.className = 'badge';
+      b.textContent = text;
+      el.appendChild(b);
+    }
+  });
+}
+
+function emptyPanel() {
+  panelEl.innerHTML = `<div class="empty-tip">
+    点击任意兵牌查看 / 编辑其属性。<br><br>
+    从左侧<b>兵牌库</b>拖动单位到树中即可新增编制；<br>
+    拖动已有兵牌到其他单位上可调整归属。<br><br>
+    <b>Ctrl+C</b> 复制选中单位（含下属）<br>
+    <b>Ctrl+V</b> 粘贴到选中单位下<br>
+    <b>Ctrl+Z</b> 撤销上一步结构操作<br>
+    <b>同步按钮</b>可复制人数装备或完整编制到同级同类<br>
+    将单位<b>拖到左侧兵牌库</b>即可快速删除
+  </div>`;
+}
+
+function addChild(node) {
+  pushHistory();
+  const idx = ECHELON_ORDER.indexOf(node.echelon);
+  const childEchelon = ECHELON_ORDER[Math.min(idx+1, ECHELON_ORDER.length-1)];
+  const child = newNode(node.type, childEchelon);
+  node.children.push(child);
+  if (node.collapsed) node.collapsed = false;
+  renumber(root, false);
+  render();
+  selectNode(child);
+}
+
+function deleteNode(node) {
+  const p = findParent(node);
+  if (!p) return;
+  pushHistory();
+  p.children.splice(p.children.indexOf(node), 1);
+  renumber(root, false);
+  selectedId = null;
+  render(); emptyPanel(); renderStats();
+}
+
+function renameNode(node) {
+  const v = prompt('输入部队番号：', node.name);
+  if (v !== null && v.trim()) {
+    node.name = v.trim();
+    node.customName = true;
+    updateNodeLabel(node);
+    if (node.id === selectedId) { fillPanel(node); renderStats(); }
+  }
+}
+
+const STORAGE_KEY = 'mil_org_saves_v1';
+
+function getSaves() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }
+  catch (e) { return {}; }
+}
+function setSaves(saves) { localStorage.setItem(STORAGE_KEY, JSON.stringify(saves)); }
+
+const saveModal = document.getElementById('save-modal');
+const saveNameInput = document.getElementById('save-name-input');
+document.getElementById('btn-save').addEventListener('click', () => {
+  saveNameInput.value = root.name + ' ' + new Date().toLocaleDateString();
+  saveModal.classList.add('show');
+  setTimeout(() => saveNameInput.select(), 50);
+});
+document.getElementById('save-cancel').addEventListener('click', () => saveModal.classList.remove('show'));
+document.getElementById('save-confirm').addEventListener('click', () => {
+  const name = saveNameInput.value.trim();
+  if (!name) { saveNameInput.focus(); return; }
+  const saves = getSaves();
+  const global = computeStats(root);
+  saves[name] = {
+    data: serializeOrg(root),
+    time: Date.now(),
+    personnel: global.personnel,
+    equipTotal: Object.values(global.equipment).reduce((a,b)=>a+b,0),
+  };
+  try {
+    setSaves(saves);
+    saveModal.classList.remove('show');
+    toast('已保存：' + name);
+  } catch (e) {
+    alert('保存失败：' + e.message);
+  }
+});
+saveNameInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('save-confirm').click();
+  if (e.key === 'Escape') saveModal.classList.remove('show');
+});
+
+const loadModal = document.getElementById('load-modal');
+const loadList = document.getElementById('load-list');
+document.getElementById('btn-load').addEventListener('click', () => {
+  refreshLoadList();
+  loadModal.classList.add('show');
+});
+document.getElementById('load-cancel').addEventListener('click', () => loadModal.classList.remove('show'));
+
+function refreshLoadList() {
+  const saves = getSaves();
+  const keys = Object.keys(saves).sort((a,b) => (saves[b].time||0) - (saves[a].time||0));
+  if (!keys.length) {
+    loadList.innerHTML = '<div class="modal-empty">还没有任何存档</div>';
+    return;
+  }
+  loadList.innerHTML = keys.map(k => {
+    const s = saves[k];
+    const date = new Date(s.time || Date.now());
+    const meta = `${date.toLocaleString('zh-CN')} · 👤${(s.personnel||0).toLocaleString()} · 🔧${(s.equipTotal||0).toLocaleString()}`;
+    return `<div class="modal-item" data-key="${escapeHtml(k)}">
+      <div class="info">
+        <div class="name">${escapeHtml(k)}</div>
+        <div class="meta">${meta}</div>
+      </div>
+      <button class="del-btn" data-del="${escapeHtml(k)}" title="删除存档">✕</button>
+    </div>`;
+  }).join('');
+
+  loadList.querySelectorAll('.modal-item').forEach(item => {
+    item.addEventListener('click', ev => {
+      if (ev.target.closest('.del-btn')) return;
+      const key = item.dataset.key;
+      const s = getSaves()[key];
+      if (!s) return;
+      if (!confirm(`加载存档「${key}」？当前编制将被替换。`)) return;
+      try {
+        pushHistory();
+        root = deserializeOrg(s.data);
+        uid = 0;
+        forEachNode(root, n => {
+          const num = parseInt(n.id.slice(1), 10);
+          if (num > uid) uid = num;
+        });
+        selectedId = null;
+        render(); emptyPanel(); renderStats();
+        loadModal.classList.remove('show');
+        toast('已加载：' + key);
+      } catch (e) {
+        alert('加载失败：' + e.message);
+      }
+    });
+  });
+  loadList.querySelectorAll('.del-btn').forEach(btn => {
+    btn.addEventListener('click', ev => {
+      ev.stopPropagation();
+      const key = btn.dataset.del;
+      if (!confirm(`删除存档「${key}」？`)) return;
+      const saves = getSaves();
+      delete saves[key];
+      setSaves(saves);
+      refreshLoadList();
+    });
+  });
+}
+
+document.getElementById('save-file-btn').addEventListener('click', () => {
+  const name = saveNameInput.value.trim() || root.name || '军队编制';
+  const data = serializeOrg(root);
+  const str = JSON.stringify(data, null, 2);
+  const blob = new Blob([str], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  saveModal.classList.remove('show');
+  toast('已导出文件：' + name + '.json');
+});
+
+document.getElementById('load-file-btn').addEventListener('click', () => {
+  document.getElementById('file-input').click();
+});
+
+document.getElementById('file-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!data || !data.type || !data.echelon) throw new Error('文件格式不正确，缺少必要字段');
+
+      pushHistory();
+      root = deserializeOrg(data);
+      uid = 0;
+      forEachNode(root, n => {
+        const num = parseInt(n.id.slice(1), 10);
+        if (num > uid) uid = num;
+      });
+      selectedId = null;
+      render(); emptyPanel(); renderStats();
+      loadModal.classList.remove('show');
+      toast('已导入文件：' + file.name);
+    } catch (err) {
+      alert('导入失败：' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+function toast(msg, isErr) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = `position:fixed;bottom:60px;left:50%;transform:translateX(-50%);
+    background:${isErr ? '#dc2626' : '#16a34a'};color:#fff;padding:8px 18px;border-radius:8px;
+    font-size:13px;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,.25);
+    opacity:0;transition:opacity .2s;`;
+  document.body.appendChild(t);
+  requestAnimationFrame(() => t.style.opacity = '1');
+  setTimeout(() => {
+    t.style.opacity = '0';
+    setTimeout(() => t.remove(), 250);
+  }, 1600);
+}
+
+const presetModal = document.getElementById('preset-modal');
+const presetConfirmBtn = document.getElementById('preset-confirm');
+let pendingPreset = null;
+
+function resetPresetModal() {
+  pendingPreset = null;
+  document.querySelectorAll('#preset-modal .preset-item').forEach(x => x.classList.remove('active'));
+  presetConfirmBtn.disabled = true;
+}
+
+document.getElementById('btn-preset').addEventListener('click', () => {
+  resetPresetModal();
+  presetModal.classList.add('show');
+});
+
+document.getElementById('preset-cancel').addEventListener('click', () => {
+  resetPresetModal();
+  presetModal.classList.remove('show');
+});
+
+presetConfirmBtn.addEventListener('click', () => {
+  if (!pendingPreset) return;
+  const builder = PRESETS[pendingPreset];
+  if (!builder) return;
+  pushHistory();
+  root = builder();
+  selectedId = null;
+  render(); emptyPanel(); renderStats();
+  presetModal.classList.remove('show');
+  resetPresetModal();
+  toast('已加载预设');
+});
+
+document.querySelectorAll('#preset-modal .preset-item').forEach(item => {
+  const pick = () => {
+    const key = item.dataset.preset;
+    if (!PRESETS[key]) return;
+    pendingPreset = key;
+    document.querySelectorAll('#preset-modal .preset-item').forEach(x => {
+      x.classList.toggle('active', x === item);
+    });
+    presetConfirmBtn.disabled = false;
+  };
+  item.addEventListener('pointerdown', pick);
+  item.addEventListener('click', pick);
+});
+
+const changelogModal = document.getElementById('changelog-modal');
+document.getElementById('btn-changelog').addEventListener('click', () => changelogModal.classList.add('show'));
+document.getElementById('changelog-close').addEventListener('click', () => changelogModal.classList.remove('show'));
+
+const VERSION_SEEN_KEY = 'mil_last_seen_version_v1';
+
+function checkVersionUpdate() {
+  let seen = null;
+  try { seen = localStorage.getItem(VERSION_SEEN_KEY); } catch (e) {}
+
+  if (seen === VERSION) return;
+  try { localStorage.setItem(VERSION_SEEN_KEY, VERSION); } catch (e) {}
+
+  if (!seen) return;
+  changelogModal.classList.add('show');
+}
+
+document.getElementById('btn-renumber').addEventListener('click', () => {
+  renumber(root, true);
+  render();
+  if (selectedId && nodeById[selectedId]) fillPanel(nodeById[selectedId]);
+  renderStats();
+});
+
+document.getElementById('btn-collapse-all').addEventListener('click', () => {
+  forEachNode(root, n => { if (n.children.length) n.collapsed = true; });
+  root.collapsed = false;
+  render();
+  if (selectedId && nodeById[selectedId]) fillPanel(nodeById[selectedId]);
+});
+
+document.getElementById('btn-expand-all').addEventListener('click', () => {
+  forEachNode(root, n => { n.collapsed = false; });
+  render();
+  if (selectedId && nodeById[selectedId]) fillPanel(nodeById[selectedId]);
+});
+
+const btnTheme = document.getElementById('btn-theme');
+btnTheme.addEventListener('click', () => {
+  const isDark = document.body.classList.toggle('dark');
+  btnTheme.textContent = isDark ? '🌙 暗黑' : '☀ 正常';
+  refreshLibSymbols();
+  render();
+});
+
+const btnStats = document.getElementById('btn-toggle-stats');
+btnStats.addEventListener('click', () => {
+  SHOW_NODE_STATS = !SHOW_NODE_STATS;
+  btnStats.textContent = SHOW_NODE_STATS ? '👁 显示统计' : '👁 隐藏统计';
+  render();
+});
+
+const WELCOME_KEY = 'mil_welcome_choice_v1';
+const welcomeModal = document.getElementById('welcome-modal');
+let welcomeTheme = 'light';
+let welcomePreset = 'armor';
+
+document.querySelectorAll('#welcome-theme .welcome-choice').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('#welcome-theme .welcome-choice').forEach(x => x.classList.remove('active'));
+    el.classList.add('active');
+    welcomeTheme = el.dataset.theme;
+    if (welcomeTheme === 'dark') document.body.classList.add('dark');
+    else document.body.classList.remove('dark');
+    btnTheme.textContent = welcomeTheme === 'dark' ? '🌙 暗黑' : '☀ 正常';
+    refreshLibSymbols();
+    render();
+  });
+});
+
+function refreshWelcomePresetSel() {
+  document.querySelectorAll('#welcome-preset .preset-item').forEach(x => {
+    x.classList.toggle('active', x.dataset.preset === welcomePreset);
+  });
+}
+document.querySelectorAll('#welcome-preset .preset-item').forEach(el => {
+  el.addEventListener('click', () => {
+    welcomePreset = el.dataset.preset;
+    refreshWelcomePresetSel();
+  });
+});
+
+document.getElementById('welcome-confirm').addEventListener('click', () => {
+  const remember = document.getElementById('welcome-remember').checked;
+  if (remember) {
+    localStorage.setItem(WELCOME_KEY, JSON.stringify({ theme: welcomeTheme, preset: welcomePreset }));
+  } else {
+    localStorage.removeItem(WELCOME_KEY);
+  }
+
+  if (welcomeTheme === 'dark') document.body.classList.add('dark');
+  else document.body.classList.remove('dark');
+  btnTheme.textContent = welcomeTheme === 'dark' ? '🌙 暗黑' : '☀ 正常';
+
+  const builder = PRESETS[welcomePreset] || buildArmorDivision;
+  root = builder();
+  selectedId = null;
+  render(); emptyPanel(); renderStats();
+
+  welcomeModal.classList.remove('show');
+});
+
+document.getElementById('toggle-lib').addEventListener('click', () => {
+  document.body.classList.toggle('hide-lib');
+  setTimeout(() => render(), 280);
+});
+document.getElementById('toggle-props').addEventListener('click', () => {
+  document.body.classList.toggle('hide-props');
+  setTimeout(() => render(), 280);
+});
+
+const mobileMask = document.getElementById('mobile-mask');
+
+function closeMobileDrawers() {
+  document.body.classList.remove('mobile-lib-open', 'mobile-props-open');
+  mobileMask.classList.remove('show');
+}
+
+document.getElementById('mobile-open-lib').addEventListener('click', () => {
+  document.body.classList.add('mobile-lib-open');
+  document.body.classList.remove('mobile-props-open');
+  mobileMask.classList.add('show');
+});
+
+document.getElementById('mobile-open-props').addEventListener('click', () => {
+  document.body.classList.add('mobile-props-open');
+  document.body.classList.remove('mobile-lib-open');
+  mobileMask.classList.add('show');
+});
+
+mobileMask.addEventListener('click', closeMobileDrawers);
+
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 900) closeMobileDrawers();
+});
+
+const mobileMoreModal = document.getElementById('mobile-more-modal');
+
+document.getElementById('mobile-menu').addEventListener('click', () => {
+  mobileMoreModal.classList.add('show');
+});
+
+document.getElementById('mobile-more-close').addEventListener('click', () => {
+  mobileMoreModal.classList.remove('show');
+});
+
+document.querySelectorAll('.m-more-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const action = btn.dataset.target;
+    mobileMoreModal.classList.remove('show');
+    setTimeout(() => {
+      switch (action) {
+        case 'btn-theme': {
+          const isDark = document.body.classList.toggle('dark');
+          btnTheme.textContent = isDark ? '🌙 暗黑' : '☀ 正常';
+          refreshLibSymbols();
+          render();
+          break;
+        }
+        case 'btn-undo':
+          undo();
+          break;
+        case 'btn-collapse-all':
+          forEachNode(root, n => { if (n.children.length) n.collapsed = true; });
+          root.collapsed = false;
+          render();
+          if (selectedId && nodeById[selectedId]) fillPanel(nodeById[selectedId]);
+          break;
+        case 'btn-expand-all':
+          forEachNode(root, n => { n.collapsed = false; });
+          render();
+          if (selectedId && nodeById[selectedId]) fillPanel(nodeById[selectedId]);
+          break;
+        case 'btn-load':
+          refreshLoadList();
+          loadModal.classList.add('show');
+          break;
+        case 'btn-preset':
+          presetModal.classList.add('show');
+          break;
+        case 'btn-toggle-stats':
+          SHOW_NODE_STATS = !SHOW_NODE_STATS;
+          btnStats.textContent = SHOW_NODE_STATS ? '👁 显示统计' : '👁 隐藏统计';
+          render();
+          break;
+        case 'btn-changelog':
+          changelogModal.classList.add('show');
+          break;
+        case 'btn-renumber':
+          renumber(root, true);
+          render();
+          if (selectedId && nodeById[selectedId]) fillPanel(nodeById[selectedId]);
+          renderStats();
+          break;
+      }
+    }, 100);
+  });
+});
+
+mobileMoreModal.addEventListener('click', e => {
+  if (e.target === mobileMoreModal) mobileMoreModal.classList.remove('show');
+});
+
+document.addEventListener('keydown', e => {
+  const tag = (e.target.tagName || '').toLowerCase();
+  const isForm = tag === 'input' || tag === 'textarea' || tag === 'select';
+  if (isForm) {
+    if (e.key === 'Escape') e.target.blur();
+    return;
+  }
+  if (saveModal.classList.contains('show') ||
+      loadModal.classList.contains('show') ||
+      presetModal.classList.contains('show') ||
+      welcomeModal.classList.contains('show') ||
+      changelogModal.classList.contains('show') ||
+      mobileMoreModal.classList.contains('show')) return;
+
+  const ctrl = e.ctrlKey || e.metaKey;
+
+  if (ctrl) {
+    const k = e.key.toLowerCase();
+    if (k === 'z') { e.preventDefault(); undo(); return; }
+    if (k === 'c') { e.preventDefault(); copySelected(); return; }
+    if (k === 'v') { e.preventDefault(); pasteClipboard(); return; }
+    if (k === 'r') {
+      e.preventDefault();
+      renumber(root, true);
+      render();
+      if (selectedId && nodeById[selectedId]) fillPanel(nodeById[selectedId]);
+      renderStats();
+      return;
+    }
+    return;
+  }
+
+  const sel = selectedId ? nodeById[selectedId] : null;
+
+  if (e.key === ' ' || e.code === 'Space') {
+    if (sel && sel.children.length) {
+      e.preventDefault();
+      sel.collapsed = !sel.collapsed;
+      render();
+      fillPanel(sel);
+    }
+    return;
+  }
+
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (sel && sel !== root) { e.preventDefault(); deleteNode(sel); }
+    return;
+  }
+
+  if (e.key === 'n' || e.key === 'N') {
+    if (sel) { e.preventDefault(); addChild(sel); }
+    return;
+  }
+
+  if (e.key === 'Enter') {
+    if (sel) { e.preventDefault(); renameNode(sel); }
+    return;
+  }
+
+  if (e.key === 'Escape') {
+    if (selectedId) { selectedId = null; render(); emptyPanel(); renderStats(); }
+    return;
+  }
+
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const all = [];
+    forEachVisibleNode(root, n => all.push(n));
+    if (!all.length) return;
+    let idx = all.findIndex(n => n.id === selectedId);
+    if (e.shiftKey) idx = (idx <= 0) ? all.length - 1 : idx - 1;
+    else            idx = (idx + 1) % all.length;
+    selectNode(all[idx]);
+    return;
+  }
+
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
+    e.preventDefault();
+    if (!sel) { selectNode(root); return; }
+    const parent = findParent(sel);
+    let target = null;
+    if (e.key === 'ArrowDown') {
+      if (!sel.collapsed && sel.children.length) target = sel.children[0];
+      else if (sel.collapsed && sel.children.length) {
+        sel.collapsed = false; render(); fillPanel(sel); return;
+      }
+    } else if (e.key === 'ArrowUp') {
+      if (parent) target = parent;
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      if (parent) {
+        const i = parent.children.indexOf(sel);
+        if (e.key === 'ArrowLeft'  && i > 0) target = parent.children[i - 1];
+        if (e.key === 'ArrowRight' && i < parent.children.length - 1) target = parent.children[i + 1];
+      }
+    }
+    if (target) selectNode(target);
+    return;
+  }
+});
+
+document.getElementById('btn-undo').addEventListener('click', undo);
+
+(function boot() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(WELCOME_KEY) || 'null'); }
+  catch (e) { saved = null; }
+
+  if (saved && saved.preset && PRESETS[saved.preset]) {
+    if (saved.theme === 'dark') {
+      document.body.classList.add('dark');
+      btnTheme.textContent = '🌙 暗黑';
+    }
+    root = PRESETS[saved.preset]();
+    selectedId = null;
+    render(); emptyPanel(); renderStats();
+    refreshLibSymbols();
+  } else {
+    root = buildArmorDivision();
+    render(); emptyPanel(); renderStats();
+    welcomeTheme = 'light';
+    welcomePreset = 'armor';
+    refreshWelcomePresetSel();
+    welcomeModal.classList.add('show');
+  }
+
+  setTimeout(checkVersionUpdate, 800);
+})();
+
+document.getElementById('zoom-in').addEventListener('click', () => setZoom(zoomLevel + ZOOM_STEP));
+document.getElementById('zoom-out').addEventListener('click', () => setZoom(zoomLevel - ZOOM_STEP));
+document.getElementById('zoom-reset').addEventListener('click', () => setZoom(1));
+
+wrapEl.addEventListener('wheel', e => {
+  if (window.innerWidth <= 900) return;
+  e.preventDefault();
+
+  const rect = wrapEl.getBoundingClientRect();
+  const px = e.clientX - rect.left;
+  const py = e.clientY - rect.top;
+
+  const oldZoom = zoomLevel;
+  const newZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoomLevel - e.deltaY * 0.0015));
+  if (newZoom === oldZoom) return;
+
+  const contentX = (wrapEl.scrollLeft + px) / oldZoom;
+  const contentY = (wrapEl.scrollTop  + py) / oldZoom;
+
+  zoomLevel = newZoom;
+  applyZoom();
+
+  wrapEl.scrollLeft = contentX * newZoom - px;
+  wrapEl.scrollTop  = contentY * newZoom - py;
+}, { passive: false });
+
+let panState = null;
+wrapEl.addEventListener('pointerdown', e => {
+  if (window.innerWidth <= 900) return;
+  if (e.button !== 0) return;
+  if (e.target.closest('.node')) return;
+  panState = {
+    startX: e.clientX,
+    startY: e.clientY,
+    scrollLeft: wrapEl.scrollLeft,
+    scrollTop: wrapEl.scrollTop,
+    moved: false,
+    pointerId: e.pointerId,
+  };
+  wrapEl.setPointerCapture(e.pointerId);
+  wrapEl.classList.add('panning');
+});
+
+wrapEl.addEventListener('pointermove', e => {
+  if (!panState || e.pointerId !== panState.pointerId) return;
+  const dx = e.clientX - panState.startX;
+  const dy = e.clientY - panState.startY;
+  if (!panState.moved && Math.hypot(dx, dy) > 4) panState.moved = true;
+  if (!panState.moved) return;
+  wrapEl.scrollLeft = panState.scrollLeft - dx;
+  wrapEl.scrollTop  = panState.scrollTop  - dy;
+});
+
+function endPan(e) {
+  if (!panState) return;
+  if (e && e.pointerId !== panState.pointerId) return;
+  try { wrapEl.releasePointerCapture(panState.pointerId); } catch (_) {}
+  wrapEl.classList.remove('panning');
+  panState = null;
+}
+wrapEl.addEventListener('pointerup', endPan);
+wrapEl.addEventListener('pointercancel', endPan);
+
+let pinchStartDist = 0;
+let pinchStartZoom = 1;
+wrapEl.addEventListener('touchstart', e => {
+  if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    pinchStartDist = Math.hypot(dx, dy);
+    pinchStartZoom = zoomLevel;
+  }
+}, { passive: true });
+
+wrapEl.addEventListener('touchmove', e => {
+  if (e.touches.length === 2 && pinchStartDist > 0) {
+    e.preventDefault();
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const dist = Math.hypot(dx, dy);
+    setZoom(pinchStartZoom * dist / pinchStartDist);
+  }
+}, { passive: false });
+
+wrapEl.addEventListener('touchend', e => {
+  if (e.touches.length < 2) pinchStartDist = 0;
+}, { passive: true });
+
+window.addEventListener('resize', () => render());
+</script>
+</body>
+</html>
