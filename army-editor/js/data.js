@@ -142,9 +142,9 @@ const ECHELONS = {
   army:{name:'集团军'}, corps:{name:'军'}, division:{name:'师'},
   brigade:{name:'旅'}, regiment:{name:'团'}, battalion:{name:'营'},
   company:{name:'连'}, platoon:{name:'排'}, section:{name:'分队'},
-  squad:{name:'班'}, team:{name:'火力组'},
+  squad:{name:'班'}, team:{name:'火力组'}, individual:{name:'单兵'},
 };
-const ECHELON_ORDER = ['army','corps','division','brigade','regiment','battalion','company','platoon','section','squad','team'];
+const ECHELON_ORDER = ['army','corps','division','brigade','regiment','battalion','company','platoon','section','squad','team','individual'];
 
 const AUX_TYPES = [
   'artillery','mlrs','mortar','anti_tank','aaa',
@@ -160,7 +160,7 @@ const INK_LIGHT = '#0a3d91', PAPER_LIGHT = '#dce8f7';
 const INK_DARK  = '#7cb1f0', PAPER_DARK  = '#1e3a5f';
 const BORDER_SW = 3;
 
-const DEFAULT_VERT_ECHELONS = new Set(['platoon', 'section', 'squad', 'team']);
+const DEFAULT_VERT_ECHELONS = new Set(['platoon', 'section', 'squad', 'team', 'individual']);
 
 /* ============================================================
    预设编制：所有 make / build 函数

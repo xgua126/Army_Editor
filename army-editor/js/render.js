@@ -52,17 +52,36 @@ function echelonMarkSVG(echelon, ink) {
   }
 }
 
+/* 新增：文字元素渲染 */
+function renderTextPart(content, ink) {
+  const text = String(content || '').slice(0, 6);
+  if (!text) return '';
+  const fontSize = text.length <= 2 ? 26 : text.length <= 3 ? 22 : text.length <= 4 ? 18 : 14;
+  return `<text x="36" y="46" dy="0.35em" text-anchor="middle"
+    font-family="Arial, 'Helvetica Neue', sans-serif"
+    font-weight="900" font-size="${fontSize}"
+    fill="${ink}" letter-spacing="0.5">${escapeXml(text)}</text>`;
+}
+
 function typeIconSVG(type, ink, paper, custom) {
   const def = TYPES[type] || {};
   const main = custom ? (custom.main || []) : (def.main || []);
   const s1   = custom ? (custom.s1   || []) : (def.s1   || []);
   const s2   = custom ? (custom.s2   || []) : (def.s2   || []);
-  const mainSvg = main.map(p => ICON_PARTS[p]    ? ICON_PARTS[p](ink, paper)    : '').join('');
-  const s1Svg   = s1.map(p => SECTOR1_PARTS[p] ? SECTOR1_PARTS[p](ink, paper) : '').join('');
-  const s2Svg   = s2.map(p => SECTOR2_PARTS[p] ? SECTOR2_PARTS[p](ink, paper) : '').join('');
+  const renderList = (list, lib) => list.map(p => {
+    if (typeof p === 'string') {
+      return lib[p] ? lib[p](ink, paper) : '';
+    }
+    if (p && p.t === 'text') {
+      return renderTextPart(p.c, ink);
+    }
+    return '';
+  }).join('');
+  const mainSvg = renderList(main, ICON_PARTS);
+  const s1Svg   = renderList(s1, SECTOR1_PARTS);
+  const s2Svg   = renderList(s2, SECTOR2_PARTS);
   return mainSvg + s1Svg + s2Svg;
 }
-
 function buildSymbol(type, echelon, custom) {
   const { ink, paper } = getThemeColors();
   return `<svg viewBox="0 0 ${SYM_W} ${SYM_H}" width="${SYM_W}" height="${SYM_H}" xmlns="http://www.w3.org/2000/svg">

@@ -79,33 +79,43 @@ function refreshLoadList() {
       const key = item.dataset.key;
       const s = getSaves()[key];
       if (!s) return;
-      if (!confirm(`加载存档「${key}」？当前编制将被替换。`)) return;
-      try {
-        pushHistory();
-        root = deserializeOrg(s.data);
-        uid = 0;
-        forEachNode(root, n => {
-          const num = parseInt(n.id.slice(1), 10);
-          if (num > uid) uid = num;
-        });
-        selectedId = null;
-        render(); emptyPanel(); renderStats();
-        loadModal.classList.remove('show');
-        toast('已加载：' + key);
-      } catch (e) {
-        alert('加载失败：' + e.message);
-      }
+      showConfirmDialog(
+        '加载存档',
+        `确定加载「<b>${escapeHtml(key)}</b>」？<br>当前编制将被替换。`,
+        function() {
+          try {
+            pushHistory();
+            root = deserializeOrg(s.data);
+            uid = 0;
+            forEachNode(root, n => {
+              const num = parseInt(n.id.slice(1), 10);
+              if (num > uid) uid = num;
+            });
+            selectedId = null;
+            render(); emptyPanel(); renderStats();
+            loadModal.classList.remove('show');
+            toast('已加载：' + key);
+          } catch (e) {
+            toast('加载失败：' + e.message, true);
+          }
+        }
+      );
     });
   });
   loadList.querySelectorAll('.del-btn').forEach(btn => {
     btn.addEventListener('click', ev => {
       ev.stopPropagation();
       const key = btn.dataset.del;
-      if (!confirm(`删除存档「${key}」？`)) return;
-      const saves = getSaves();
-      delete saves[key];
-      setSaves(saves);
-      refreshLoadList();
+      showConfirmDialog(
+        '删除存档',
+        `确定删除「<b>${escapeHtml(key)}</b>」？此操作不可恢复。`,
+        function() {
+          const saves = getSaves();
+          delete saves[key];
+          setSaves(saves);
+          refreshLoadList();
+        }
+      );
     });
   });
 }
@@ -210,30 +220,28 @@ document.querySelectorAll('#preset-modal .preset-item').forEach(item => {
 
 /* ---------- 更新日志弹窗 ---------- */
 function showChangelogModal(){
-  var cs = getComputedStyle(document.body);
-  var cBorder = cs.getPropertyValue('--border').trim() || '#e2e8f0';
-  var cLegend = cs.getPropertyValue('--legend-bg').trim() || '#eef2f7';
-  var cInput  = cs.getPropertyValue('--input-border').trim() || '#cbd5e1';
-  var cFg     = cs.getPropertyValue('--fg').trim() || '#1e293b';
-  var cAccent = cs.getPropertyValue('--accent').trim() || '#2563eb';
+  const modal = document.getElementById('changelog-modal');
+  const bodyEl = document.getElementById('changelog-body');
 
-  var body = CHANGELOG.map(function(v){
-    return '<div style="margin-bottom:16px;padding-bottom:12px;border-bottom:1px dashed '+cBorder+';">'
-      + '<h4 style="margin:0 0 8px;font-size:14px;color:'+cAccent+';font-weight:700;">v'+v.version
-      + '<span style="font-size:12px;color:'+cFg+';opacity:.55;font-weight:400;margin-left:8px;">'+v.date+'</span></h4>'
-      + '<ul style="margin:0;padding-left:20px;line-height:1.8;">'
-      + v.changes.map(function(c){ return '<li>'+escapeHtml(c)+'</li>'; }).join('')
-      + '</ul></div>';
-  }).join('');
+  if (!modal || !bodyEl) return;
 
-  var actions = '<button id="_pp_close" style="font:inherit;font-size:13px;padding:8px 14px;border-radius:6px;cursor:pointer;border:1px solid '+cInput+';background:'+cLegend+';color:'+cFg+';">关闭</button>';
+  // 重新渲染日志内容（防止因修改 CHANGELOG 而没有刷新）
+  bodyEl.innerHTML = CHANGELOG.map(v => `
+    <div class="changelog-version">
+      <h4>v${v.version}<span>${v.date}</span></h4>
+      <ul>${v.changes.map(c => `<li>${escapeHtml(c)}</li>`).join('')}</ul>
+    </div>
+  `).join('');
 
-  showPopup('📜 更新日志', body, actions, function(B, close){
-    B.querySelector('#_pp_close').addEventListener('click', close);
-  });
+  modal.classList.add('show');
 }
 
 document.getElementById('btn-changelog').addEventListener('click', showChangelogModal);
+
+// 绑定关闭按钮
+document.getElementById('changelog-close').addEventListener('click', () => {
+  document.getElementById('changelog-modal').classList.remove('show');
+});
 
 /* ---------- 版本检测（进入页面弹更新日志） ---------- */
 const VERSION_SEEN_KEY = 'mil_last_seen_version_v1';

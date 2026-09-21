@@ -298,6 +298,14 @@ function renumber(node, force) {
               child.name = `${x}火力组`;
               break;
             }
+            case 'individual': {
+              const k = n.id + '_individual';
+              const x = (numCounters[k] || 0) + 1;
+              numCounters[k] = x;
+              const t = TYPES[child.type] ? TYPES[child.type].name : '兵';
+              child.name = `${t}${x}`;
+              break;
+            }
             default: {
               const k = n.id + '_' + child.echelon;
               const x = (numCounters[k] || 0) + 1;

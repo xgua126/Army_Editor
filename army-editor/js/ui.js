@@ -276,7 +276,16 @@ libEchelonSel.addEventListener('change', refreshLibSymbols);
 function deleteCustomType(key) {
   const def = TYPES[key];
   if (!def || !def.isCustom) return;
-  if (!confirm(`删除自定义兵种「${def.name}」？\n使用该兵种的单位将变为步兵。`)) return;
+  showConfirmDialog(
+    '删除自定义兵种',
+    `确定删除「<b>${escapeHtml(def.name)}</b>」？<br><br>使用该兵种的单位将变为步兵。`,
+    function() { doDeleteCustomType(key); }
+  );
+}
+
+function doDeleteCustomType(key) {
+  const def = TYPES[key];
+  if (!def || !def.isCustom) return;
 
   pushHistory();
   let count = 0;
@@ -333,8 +342,11 @@ function renderPickRow(container, layer, lib) {
   container.innerHTML = '';
   Object.keys(lib).forEach(part => {
     const card = document.createElement('div');
-    card.className = 'custom-pick-item' + (customDraft[layer].includes(part) ? ' on' : '');
-    card.innerHTML = renderPartPreview(layer, part) +
+    const isOn = customDraft[layer].some(p =>
+      (typeof p === 'string' && p === part)
+    );
+    card.className = 'custom-pick-item' + (isOn ? ' on' : '');
+    card.innerHTML = '<div class="sym-wrap">' + renderPartPreview(layer, part) + '</div>' +
       '<div class="nm">' + (CHIP_LABELS[part] || part) + '</div>';
     card.addEventListener('click', () => {
       const arr = customDraft[layer];
@@ -345,25 +357,69 @@ function renderPickRow(container, layer, lib) {
     });
     container.appendChild(card);
   });
+
+  // 特殊：只在"主元素"区域加一个"文字"卡片
+  if (layer === 'main') {
+    const textItems = customDraft.main.filter(p => p && p.t === 'text');
+    const isOn = textItems.length > 0;
+    const curText = textItems[0] ? textItems[0].c : 'ABC';
+
+    const textCard = document.createElement('div');
+    textCard.className = 'custom-pick-item' + (isOn ? ' on' : '');
+    textCard.innerHTML = '<div class="sym-wrap">' + renderPartPreview('main', { t: 'text', c: curText }) + '</div>' +
+      '<div class="nm">文字</div>';
+    textCard.addEventListener('click', () => {
+      const cur = textItems[0] ? textItems[0].c : '';
+      showInputDialog({
+        title: '输入文字',
+        label: '要显示的文字（最多 6 个字符）',
+        defaultValue: cur || '',
+        placeholder: '例如：GD、101、张三',
+        maxLength: 6
+      }, function(v) {
+        if (v === null) return;
+        const trimmed = v.trim().slice(0, 6);
+        customDraft.main = customDraft.main.filter(p => !(p && p.t === 'text'));
+        if (trimmed) {
+          customDraft.main.push({ t: 'text', c: trimmed });
+        }
+        renderCustomModal();
+      });
+    });
+    container.appendChild(textCard);
+  }
 }
 
 function renderPartPreview(layer, part) {
   const { ink, paper } = getThemeColors();
-  const drawFn = layer === 'main' ? ICON_PARTS[part]
-               : layer === 's1'   ? SECTOR1_PARTS[part]
-               :                    SECTOR2_PARTS[part];
-  if (!drawFn) return '';
-  return '<svg viewBox="0 22 72 48" width="52" height="38" xmlns="http://www.w3.org/2000/svg">' +
+  let svg = '';
+  if (typeof part === 'string') {
+    const drawFn = layer === 'main' ? ICON_PARTS[part]
+                 : layer === 's1'   ? SECTOR1_PARTS[part]
+                 :                    SECTOR2_PARTS[part];
+    if (drawFn) svg = drawFn(ink, paper);
+  } else if (part && part.t === 'text') {
+    svg = renderTextPart(part.c, ink);
+  }
+  return '<svg viewBox="0 22 72 48" style="width:100%;height:100%;display:block;" xmlns="http://www.w3.org/2000/svg">' +
     '<rect x="2" y="23.5" width="68" height="45" fill="' + paper + '" stroke="' + ink + '" stroke-width="1.5" rx="1.5"/>' +
-    drawFn(ink, paper) +
+    svg +
     '</svg>';
 }
-
 function renderCustomPreview() {
   const { ink, paper } = getThemeColors();
-  const mainSvg = customDraft.main.map(p => ICON_PARTS[p]    ? ICON_PARTS[p](ink, paper)    : '').join('');
-  const s1Svg   = customDraft.s1.map(p   => SECTOR1_PARTS[p] ? SECTOR1_PARTS[p](ink, paper) : '').join('');
-  const s2Svg   = customDraft.s2.map(p   => SECTOR2_PARTS[p] ? SECTOR2_PARTS[p](ink, paper) : '').join('');
+  const renderList = (list, lib) => list.map(p => {
+    if (typeof p === 'string') {
+      return lib[p] ? lib[p](ink, paper) : '';
+    }
+    if (p && p.t === 'text') {
+      return renderTextPart(p.c, ink);
+    }
+    return '';
+  }).join('');
+  const mainSvg = renderList(customDraft.main, ICON_PARTS);
+  const s1Svg   = renderList(customDraft.s1, SECTOR1_PARTS);
+  const s2Svg   = renderList(customDraft.s2, SECTOR2_PARTS);
   return '<svg viewBox="0 0 72 92" width="90" height="115" xmlns="http://www.w3.org/2000/svg">' +
     '<rect x="2" y="22" width="68" height="48" fill="' + paper + '" stroke="' + ink + '" stroke-width="2.5" rx="2"/>' +
     '<line x1="36" y1="6" x2="36" y2="14" stroke="' + ink + '" stroke-width="2"/>' +
@@ -782,13 +838,19 @@ function deleteNode(node) {
 }
 
 function renameNode(node) {
-  const v = prompt('输入部队番号：', node.name);
-  if (v !== null && v.trim()) {
-    node.name = v.trim();
-    node.customName = true;
-    updateNodeLabel(node);
-    if (node.id === selectedId) { fillPanel(node); renderStats(); }
-  }
+  showInputDialog({
+    title: '重命名部队',
+    label: '输入部队番号',
+    defaultValue: node.name,
+    maxLength: 40
+  }, function(v) {
+    if (v !== null && v.trim()) {
+      node.name = v.trim();
+      node.customName = true;
+      updateNodeLabel(node);
+      if (node.id === selectedId) { fillPanel(node); renderStats(); }
+    }
+  });
 }
 
 /* ---------- 同步到同级同类 ---------- */
@@ -892,33 +954,93 @@ function toast(msg, isErr) {
 }
 
 /* ---------- 弹窗工具 ---------- */
-function showPopup(title, bodyHTML, actionsHTML, onMount) {
-  var old = document.getElementById('_pp');
+/* ---------- 通用输入弹窗（替代 prompt）---------- */
+function showInputDialog(opts, onConfirm) {
+  var old = document.getElementById('_input_dlg');
   if (old) old.remove();
-
   var cs = getComputedStyle(document.body);
-  var cPanel  = cs.getPropertyValue('--panel-bg').trim()     || '#fff';
-  var cFg     = cs.getPropertyValue('--fg').trim()           || '#1e293b';
-  var cBorder = cs.getPropertyValue('--border').trim()       || '#e2e8f0';
-  var cAccent = cs.getPropertyValue('--accent').trim()       || '#2563eb';
+  var cPanel  = cs.getPropertyValue('--panel-bg').trim() || '#fff';
+  var cFg     = cs.getPropertyValue('--fg').trim() || '#1e293b';
+  var cBorder = cs.getPropertyValue('--border').trim() || '#e2e8f0';
+  var cLegend = cs.getPropertyValue('--legend-bg').trim() || '#eef2f7';
+  var cInput  = cs.getPropertyValue('--input-border').trim() || '#cbd5e1';
+  var cInputBg= cs.getPropertyValue('--input-bg').trim() || '#fff';
+  var cAccent = cs.getPropertyValue('--accent').trim() || '#2563eb';
+  var cFgMuted= cs.getPropertyValue('--fg-muted').trim() || '#64748b';
 
   var L = document.createElement('div');
-  L.id = '_pp';
-  L.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;z-index:2147483646;';
+  L.id = '_input_dlg';
+  L.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;z-index:2147483647;';
 
   var B = document.createElement('div');
-  B.style.cssText = 'background:'+cPanel+';color:'+cFg+';border:1px solid '+cBorder+';border-radius:12px;padding:20px 22px;width:92vw;max-width:640px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 40px rgba(0,0,0,.3);';
+  B.style.cssText = 'background:'+cPanel+';color:'+cFg+';border:1px solid '+cBorder+';border-radius:12px;padding:20px 22px;width:min(420px,92vw);box-shadow:0 20px 40px rgba(0,0,0,.3);';
 
   B.innerHTML =
-    '<h3 style="margin:0 0 14px;font-size:15px;border-bottom:1px solid '+cBorder+';padding-bottom:10px;">'+title+'</h3>'
-    + '<div style="flex:1;overflow-y:auto;min-height:0;">'+bodyHTML+'</div>'
-    + '<div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">'+actionsHTML+'</div>';
+    '<h3 style="margin:0 0 14px;font-size:15px;color:'+cFg+';padding-bottom:10px;border-bottom:1px solid '+cBorder+';">'+ escapeHtml(opts.title || '输入') +'</h3>' +
+    (opts.label ? '<label style="display:block;font-size:12px;color:'+cFgMuted+';margin-bottom:6px;">'+ escapeHtml(opts.label) +'</label>' : '') +
+    '<input type="text" id="_input_dlg_field" value="'+
+      escapeHtml(opts.defaultValue || '') +
+      '" placeholder="'+ escapeHtml(opts.placeholder || '') +'"' +
+      (opts.maxLength ? ' maxlength="'+opts.maxLength+'"' : '') +
+      ' style="width:100%;font:inherit;font-size:14px;padding:9px 11px;border:1px solid '+cInput+';background:'+cInputBg+';color:'+cFg+';border-radius:6px;outline:none;box-sizing:border-box;">' +
+    '<div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end;">' +
+      '<button id="_input_dlg_cancel" style="font:inherit;font-size:13px;padding:8px 14px;border-radius:6px;cursor:pointer;border:1px solid '+cInput+';background:'+cLegend+';color:'+cFg+';">取消</button>' +
+      '<button id="_input_dlg_ok" style="font:inherit;font-size:13px;padding:8px 14px;border-radius:6px;cursor:pointer;border:1px solid '+cAccent+';background:'+cAccent+';color:#fff;">确定</button>' +
+    '</div>';
 
   L.appendChild(B);
   document.documentElement.appendChild(L);
 
-  L.addEventListener('click', function(e){ if (e.target === L) L.remove(); });
-  if (onMount) onMount(B, function(){ L.remove(); });
+  var field = B.querySelector('#_input_dlg_field');
+  setTimeout(function(){ field.focus(); field.select(); }, 50);
+
+  function close() { L.remove(); }
+  function commit() { var v = field.value; close(); onConfirm(v); }
+
+  B.querySelector('#_input_dlg_cancel').addEventListener('click', close);
+  B.querySelector('#_input_dlg_ok').addEventListener('click', commit);
+  field.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') { e.preventDefault(); close(); }
+  });
+  L.addEventListener('click', function(e) { if (e.target === L) close(); });
+}
+
+/* ---------- 通用确认弹窗（替代 confirm）---------- */
+function showConfirmDialog(title, message, onConfirm) {
+  var old = document.getElementById('_confirm_dlg');
+  if (old) old.remove();
+  var cs = getComputedStyle(document.body);
+  var cPanel  = cs.getPropertyValue('--panel-bg').trim() || '#fff';
+  var cFg     = cs.getPropertyValue('--fg').trim() || '#1e293b';
+  var cBorder = cs.getPropertyValue('--border').trim() || '#e2e8f0';
+  var cLegend = cs.getPropertyValue('--legend-bg').trim() || '#eef2f7';
+  var cInput  = cs.getPropertyValue('--input-border').trim() || '#cbd5e1';
+  var cFgMuted= cs.getPropertyValue('--fg-muted').trim() || '#64748b';
+  var cDanger = '#dc2626';
+
+  var L = document.createElement('div');
+  L.id = '_confirm_dlg';
+  L.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;z-index:2147483647;';
+
+  var B = document.createElement('div');
+  B.style.cssText = 'background:'+cPanel+';color:'+cFg+';border:1px solid '+cBorder+';border-radius:12px;padding:20px 22px;width:min(420px,92vw);box-shadow:0 20px 40px rgba(0,0,0,.3);';
+
+  B.innerHTML =
+    '<h3 style="margin:0 0 14px;font-size:15px;color:'+cFg+';padding-bottom:10px;border-bottom:1px solid '+cBorder+';">'+ escapeHtml(title) +'</h3>' +
+    '<div style="font-size:13px;color:'+cFgMuted+';line-height:1.7;">'+ message +'</div>' +
+    '<div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end;">' +
+      '<button id="_confirm_dlg_cancel" style="font:inherit;font-size:13px;padding:8px 14px;border-radius:6px;cursor:pointer;border:1px solid '+cInput+';background:'+cLegend+';color:'+cFg+';">取消</button>' +
+      '<button id="_confirm_dlg_ok" style="font:inherit;font-size:13px;padding:8px 14px;border-radius:6px;cursor:pointer;border:1px solid '+cDanger+';background:'+cDanger+';color:#fff;">确定</button>' +
+    '</div>';
+
+  L.appendChild(B);
+  document.documentElement.appendChild(L);
+
+  function close() { L.remove(); }
+  B.querySelector('#_confirm_dlg_cancel').addEventListener('click', close);
+  B.querySelector('#_confirm_dlg_ok').addEventListener('click', function() { close(); onConfirm(); });
+  L.addEventListener('click', function(e) { if (e.target === L) close(); });
 }
 
 /* ---------- 移动端 ---------- */
