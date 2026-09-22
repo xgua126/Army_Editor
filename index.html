@@ -25,7 +25,13 @@
     --link: #7cb1f0;
     --heart: #ec4899;
   }
-  html, body { margin: 0; height: 100%; overflow: hidden; }
+  html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  width: 100%;
+  max-width: 100%;
+}
   body {
     font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
     background: var(--bg);
@@ -381,8 +387,14 @@
   .support-bar .cta { padding: 7px 14px; font-size: 12px; }
 
   /* ============ 响应式（手机 / 矮屏） ============ */
-  @media (max-width: 900px), (max-height: 640px) {
-    html, body { overflow: auto; height: auto; }
+  @media (max-width: 1024px), (max-height: 720px) {
+    html, body {
+      overflow-x: auto;   /* 溢出时可以横向滚动，不再裁掉内容 */
+      overflow-y: auto;
+      height: auto;
+      width: 100%;
+      max-width: 100%;
+    }
 
     .app {
       height: auto;
@@ -390,6 +402,7 @@
       min-height: 100dvh;
       grid-template-rows: 52px auto;
       overflow: visible;
+      overflow-x: hidden;
     }
 
     /* 导航栏：粘性贴顶，滚动时保持可见 */
@@ -415,6 +428,8 @@
       gap: 28px;
       max-width: none;
       overflow: visible;
+      width: 100%;
+      overflow-x: visible;
     }
 
     /* Hero 区 */
@@ -488,6 +503,32 @@
       justify-content: center;
       min-height: 44px;
     }
+    /* 防止任何容器被子内容撑破导致整体横向溢出 */
+    .app, nav, main, .hero, .tools, .cards, .card,
+    .roadmap, .roadmap-grid, .rm-col, .bottom,
+    .sponsors-bar, .sp-track, .support-bar {
+      min-width: 0;
+      max-width: 100%;
+    }
+    .hero h1, .hero .lead, .card .title, .card .desc,
+    .rm-item, .support-bar .sp-text, .sp-scroll .sp-name {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    /* 导航 logo 内文字太长时也让它收缩 */
+    nav .logo {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    /* 卡片按钮允许换行 */
+    .card .btn, .cta {
+      white-space: normal;
+      max-width: 100%;
+    }
+    /* 赞助者标签允许收缩（原来是 flex-shrink: 0 会撑破容器） */
+    .sponsors-bar .sp-label { flex-shrink: 1; min-width: 0; }
   }
 </style>
 </head>
