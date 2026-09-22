@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
 <title>世界模拟工具集</title>
 <meta name="description" content="免费、开源的军事模拟工具集，军事编制编辑器已上线，世界地图编辑器与国家编辑器开发中">
 <meta name="author" content="BiliBili@勘茶Kchs_">
@@ -36,6 +37,7 @@
   /* ============ 主框架 ============ */
   .app {
     height: 100vh;
+    height: 100dvh;
     display: grid;
     grid-template-rows: 52px 1fr;
     overflow: hidden;
@@ -47,6 +49,7 @@
     padding: 0 28px;
     background: rgba(11, 18, 32, .9);
     backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border);
     z-index: 10;
   }
@@ -55,6 +58,7 @@
     color: var(--ink); text-decoration: none;
     letter-spacing: .3px;
     display: flex; align-items: center; gap: 8px;
+    touch-action: manipulation;
   }
   nav .logo span { color: var(--fg-muted); font-weight: 400; font-size: 11px; }
   nav .logo .cat { font-size: 16px; }
@@ -119,6 +123,7 @@
     font-size: 13px; font-weight: 600;
     transition: .15s;
     border: 1px solid transparent;
+    touch-action: manipulation;
   }
   .cta.primary { background: var(--accent); color: #fff; }
   .cta.primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
@@ -208,6 +213,7 @@
     font-size: 11.5px; font-weight: 600;
     transition: .15s;
     align-self: flex-start;
+    touch-action: manipulation;
   }
   .card .btn:hover { background: var(--accent-hover); }
 
@@ -367,14 +373,36 @@
     display: flex; gap: 14px; align-items: center;
     flex-wrap: wrap;
   }
-  .support-bar .sp-contact a { color: var(--link); text-decoration: none; }
+  .support-bar .sp-contact a {
+    color: var(--link); text-decoration: none;
+    touch-action: manipulation;
+  }
   .support-bar .sp-contact a:hover { color: var(--accent-hover); }
   .support-bar .cta { padding: 7px 14px; font-size: 12px; }
 
-  /* ============ 响应式（小屏允许滚动） ============ */
+  /* ============ 响应式（手机 / 矮屏） ============ */
   @media (max-width: 900px), (max-height: 640px) {
     html, body { overflow: auto; height: auto; }
-    .app { height: auto; }
+
+    .app {
+      height: auto;
+      min-height: 100vh;
+      min-height: 100dvh;
+      grid-template-rows: 52px auto;
+      overflow: visible;
+    }
+
+    /* 导航栏：粘性贴顶，滚动时保持可见 */
+    nav {
+      padding: 0 16px;
+      position: sticky;
+      top: 0;
+      background: rgba(11, 18, 32, .96);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+    nav .logo { font-size: 14px; }
+
     main {
       grid-template-columns: 1fr;
       grid-template-rows: auto;
@@ -383,15 +411,83 @@
         "tools"
         "roadmap"
         "bottom";
-      padding: 20px 16px 40px;
-      gap: 24px;
+      padding: 22px 16px 40px;
+      gap: 28px;
+      max-width: none;
+      overflow: visible;
     }
+
+    /* Hero 区 */
     .hero { padding-right: 0; }
-    .cards { grid-template-columns: 1fr; }
-    .roadmap-grid { grid-template-columns: 1fr; }
-    .card .desc { -webkit-line-clamp: unset; }
-    nav { padding: 0 14px; }
-    .support-bar { flex-direction: column; align-items: flex-start; }
+    .hero .cat-badge { font-size: 11px; margin-bottom: 14px; }
+    .hero h1 {
+      font-size: clamp(26px, 7vw, 34px);
+      margin-bottom: 14px;
+    }
+    .hero .lead { font-size: 14px; margin-bottom: 22px; }
+    .cta-row { gap: 10px; }
+    .cta {
+      padding: 12px 18px;
+      font-size: 13px;
+      min-height: 44px; /* 触摸友好 */
+    }
+
+    /* 工具卡片 */
+    .cards { grid-template-columns: 1fr; gap: 14px; }
+    .card { padding: 18px; }
+    .card .icon { font-size: 26px; }
+    .card .title { font-size: 15px; }
+    .card .desc { font-size: 12.5px; -webkit-line-clamp: unset; }
+    .card .btn {
+      padding: 10px 16px;
+      font-size: 12.5px;
+      min-height: 40px;
+    }
+
+    /* 路线图 */
+    .roadmap-grid { grid-template-columns: 1fr; gap: 14px; }
+    .rm-col { padding: 16px; }
+    .rm-col .rm-head {
+      font-size: 12px;
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+    }
+    .rm-item { font-size: 12px; }
+    .rm-item b { font-size: 12.5px; }
+
+    /* 赞助者栏 */
+    .sponsors-bar { height: auto; min-height: 38px; padding: 7px 0; }
+    .sponsors-bar .sp-label { padding: 0 12px; font-size: 11px; }
+    .sp-scroll .sp-name { font-size: 11.5px; }
+    .sp-track {
+      mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+      -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+    }
+
+    /* 支持条 */
+    .support-bar {
+      flex-direction: column;
+      align-items: stretch;
+      padding: 16px;
+      gap: 14px;
+    }
+    .support-bar .sp-text {
+      font-size: 12.5px;
+      min-width: 0;
+    }
+    .support-bar .sp-contact {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 12px;
+    }
+    .support-bar .cta {
+      padding: 12px 18px;
+      font-size: 13px;
+      text-align: center;
+      justify-content: center;
+      min-height: 44px;
+    }
   }
 </style>
 </head>
@@ -432,7 +528,8 @@
 
         <div class="card live">
           <div class="top-row">
-            <span class="tag">v1.6.1</span>
+            <!-- 版本号会自动从 army-editor/js/changelog.js 读取 -->
+            <span class="tag" id="army-editor-version">v1.6.1</span>
           </div>
           <div class="title">军事编制编辑器</div>
           <p class="desc">自由创建编制，分配装备，未来将他们投入实战</p>
@@ -549,13 +646,25 @@
 
 </div>
 
-<!-- 赞助者名单无缝滚动：自动复制一份内容 -->
+<!-- ============================================================
+     加载军队编辑器的 changelog.js，自动同步版本号
+     以后你只需要改 army-editor/js/changelog.js 中的 VERSION
+     网站上的版本号就会自动跟着变
+     ============================================================ -->
+<script src="army-editor/js/changelog.js"></script>
 <script>
   (function() {
-    const scroller = document.getElementById('sp-scroll');
-    if (!scroller) return;
-    // 复制内容，实现无缝滚动（animation 滚动到 -50% 时刚好接上）
-    scroller.innerHTML += scroller.innerHTML;
+    // 1) 自动同步版本号
+    var versionEl = document.getElementById('army-editor-version');
+    if (versionEl && typeof VERSION !== 'undefined' && VERSION) {
+      versionEl.textContent = 'v' + VERSION;
+    }
+
+    // 2) 赞助者名单无缝滚动：自动复制一份内容
+    var scroller = document.getElementById('sp-scroll');
+    if (scroller) {
+      scroller.innerHTML += scroller.innerHTML;
+    }
   })();
 </script>
 

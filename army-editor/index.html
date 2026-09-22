@@ -453,7 +453,6 @@
 <script src="js/io.js"></script>
 <script>
 
-
 console.log(
   '%c⚔ 军队编制编辑器 · v' + VERSION + '\n' +
   '%c作者：BiliBili@勘茶Kchs_ 与 DeepSeek 联合创作\n' +
@@ -465,8 +464,11 @@ console.log(
   'font-size:12px;color:#64748b;'
 );
 
-let SHOW_NODE_STATS = true;
+window.SHOW_NODE_STATS = true;
 
+// 补全缺失的变量声明
+const btnStats = document.getElementById('btn-toggle-stats');
+const welcomeModal = document.getElementById('welcome-modal');
 
 document.getElementById('version-label').textContent = 'v' + VERSION;
 
@@ -476,7 +478,6 @@ document.getElementById('changelog-body').innerHTML = CHANGELOG.map(v => `
     <ul>${v.changes.map(c => `<li>${escapeHtml(c)}</li>`).join('')}</ul>
   </div>
 `).join('');
-
 
 document.getElementById('btn-renumber').addEventListener('click', () => {
   renumber(root, true);
@@ -506,15 +507,13 @@ btnTheme.addEventListener('click', () => {
   render();
 });
 
-const btnStats = document.getElementById('btn-toggle-stats');
 btnStats.addEventListener('click', () => {
-  SHOW_NODE_STATS = !SHOW_NODE_STATS;
-  btnStats.textContent = SHOW_NODE_STATS ? '👁 显示统计' : '👁 隐藏统计';
+  window.SHOW_NODE_STATS = !window.SHOW_NODE_STATS;
+  btnStats.textContent = window.SHOW_NODE_STATS ? '👁 显示统计' : '👁 隐藏统计';
   render();
 });
 
 const WELCOME_KEY = 'mil_welcome_choice_v1';
-const welcomeModal = document.getElementById('welcome-modal');
 let welcomeTheme = 'light';
 let welcomePreset = 'armor';
 
@@ -574,16 +573,9 @@ document.getElementById('toggle-props').addEventListener('click', () => {
 
 document.getElementById('btn-undo').addEventListener('click', undo);
 
-
-/* =========================================================
-   弹窗显示兜底（改造版 v2）
-   —— 监听 .show class 的变化，同步用 setProperty + important
-      强制撑开弹窗，同时保证弹窗永远挂在 <body> 下
-   ========================================================= */
 (function installModalWatcher() {
   document.querySelectorAll('.modal-mask').forEach(function(m) {
     var applyShow = function() {
-      /* 关键：如果弹窗被误嵌到别的元素里，先拉回 body */
       if (m.parentNode !== document.body) {
         document.body.appendChild(m);
       }
@@ -613,15 +605,12 @@ document.getElementById('btn-undo').addEventListener('click', undo);
   });
 })();
 
-
 (function boot() {
-  // 保险：确保 custom-modal 永远挂在 body 下，避免被误移动
   const cm = document.getElementById('custom-modal');
   if (cm && cm.parentNode !== document.body) {
     document.body.appendChild(cm);
   }
 
-  // 手机端首次进入显示操作指引
   if (window.innerWidth <= 900) {
     try {
       if (!localStorage.getItem('mil_mobile_guide_seen')) {
@@ -656,13 +645,11 @@ document.getElementById('btn-undo').addEventListener('click', undo);
   setTimeout(checkVersionUpdate, 800);
 })();
 
-/* 手机端指引关闭按钮 */
 document.getElementById('mobile-guide-close').addEventListener('click', () => {
   document.getElementById('mobile-guide-modal').classList.remove('show');
   try { localStorage.setItem('mil_mobile_guide_seen', '1'); } catch (e) {}
 });
 
-/* 手机端顶部「?」按钮：随时打开操作指引 */
 document.getElementById('mobile-open-help').addEventListener('click', () => {
   document.getElementById('mobile-guide-modal').classList.add('show');
 });
@@ -730,7 +717,6 @@ function endPan(e) {
 wrapEl.addEventListener('pointerup', endPan);
 wrapEl.addEventListener('pointercancel', endPan);
 
-/* 移动端：双指捏合缩放（以两指中心为锚点） */
 let pinchState = null;
 
 wrapEl.addEventListener('touchstart', e => {
@@ -772,7 +758,6 @@ wrapEl.addEventListener('touchend', e => {
 }, { passive: true });
 
 window.addEventListener('resize', () => render());
-
 </script>
 </body>
 </html>

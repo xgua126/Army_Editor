@@ -1130,8 +1130,8 @@ function openMobileMore() {
           case 'btn-load': refreshLoadList(); loadModal.classList.add('show'); break;
           case 'btn-preset': presetModal.classList.add('show'); break;
           case 'btn-toggle-stats':
-            SHOW_NODE_STATS=!SHOW_NODE_STATS;
-            document.getElementById('btn-toggle-stats').textContent = SHOW_NODE_STATS ? '👁 显示统计' : '👁 隐藏统计';
+            window.SHOW_NODE_STATS = !window.SHOW_NODE_STATS;
+            document.getElementById('btn-toggle-stats').textContent = window.SHOW_NODE_STATS ? '👁 显示统计' : '👁 隐藏统计';
             render(); break;
           case 'btn-changelog': showChangelogModal(); break;
           case 'btn-renumber':

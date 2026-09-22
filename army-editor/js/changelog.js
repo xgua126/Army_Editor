@@ -1,6 +1,13 @@
-const VERSION = '1.6.1';
+const VERSION = '1.6.2';
 
 const CHANGELOG = [
+   {
+    version: '1.6.2',
+    date: '2026-09-22',
+    changes: [
+      '修复：人数装备数量角标无法显示',
+    ],
+   },
    {
     version: '1.6.1',
     date: '2026-09-22',
