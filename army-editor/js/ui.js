@@ -630,7 +630,10 @@ function fillPanel(node) {
       </div>
     </div>
     <div class="field">
-      <label>本级装备</label>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <label style="margin:0;">本级装备</label>
+        <button id="btn-bulk-rename-equip" style="font-size:11px; padding:3px 8px; border-radius:4px; border:1px solid var(--accent); background:var(--panel-bg); color:var(--accent); cursor:pointer; transition:.15s; width:auto; margin:0;">一键改名</button>
+      </div>
       <div id="equip-list" class="equip-list"></div>
       <div class="equip-add">
         <input id="equip-name" type="text" placeholder="装备名称">
@@ -739,6 +742,12 @@ function fillPanel(node) {
   });
 
   document.getElementById('btn-add').addEventListener('click', () => addChild(node));
+
+    // 绑定一键改名按钮
+  const bulkRenameBtn = document.getElementById('btn-bulk-rename-equip');
+  if (bulkRenameBtn) {
+    bulkRenameBtn.addEventListener('click', () => showBulkRenameDialog(node));
+  }
 
   const syncEl = document.getElementById('btn-sync');
   if (syncEl) syncEl.addEventListener('click', () => syncToSiblings(node));
@@ -866,12 +875,6 @@ function syncToSiblings(node) {
   );
   if (!siblings.length) { toast('未找到同级同类单位', true); return; }
 
-  var cs = getComputedStyle(document.body);
-  var cLegend = cs.getPropertyValue('--legend-bg').trim() || '#eef2f7';
-  var cInput  = cs.getPropertyValue('--input-border').trim() || '#cbd5e1';
-  var cFg     = cs.getPropertyValue('--fg').trim() || '#1e293b';
-  var cAccent = cs.getPropertyValue('--accent').trim() || '#2563eb';
-
   const desc = countDescendants(node);
   const body = '找到 <b>'+siblings.length+'</b> 个同级同类单位：<br>'
     + siblings.map(function(s){ return '· ' + escapeHtml(s.name); }).join('<br>')
@@ -879,22 +882,11 @@ function syncToSiblings(node) {
     + '· <b>仅同步本级</b>：只同步人数和装备，不改变它们的下属部队<br>'
     + '· <b>含下属完整同步</b>：把「'+escapeHtml(node.name)+'」的完整编制（含 <b>'+desc+'</b> 个下属单位）覆盖过去，兄弟单位的下属部队会被替换';
 
-  const actions =
-      '<button id="_pp_cancel" style="font:inherit;font-size:13px;padding:8px 14px;border-radius:6px;cursor:pointer;border:1px solid '+cInput+';background:'+cLegend+';color:'+cFg+';">取消</button>'
-    + '<button id="_pp_self" style="font:inherit;font-size:13px;padding:8px 14px;border-radius:6px;cursor:pointer;border:1px solid '+cInput+';background:'+cLegend+';color:'+cFg+';">仅同步本级</button>'
-    + '<button id="_pp_all" style="font:inherit;font-size:13px;padding:8px 14px;border-radius:6px;cursor:pointer;border:1px solid '+cAccent+';background:'+cAccent+';color:#fff;">含下属完整同步</button>';
-
-  showPopup('⇄ 同步到同级同类单位', body, actions, function(B, close){
-    B.querySelector('#_pp_cancel').addEventListener('click', close);
-    B.querySelector('#_pp_self').addEventListener('click', function(){
-      close(); syncPendingNode = node; doSyncToSiblings(false);
-    });
-    B.querySelector('#_pp_all').addEventListener('click', function(){
-      close(); syncPendingNode = node; doSyncToSiblings(true);
-    });
-  });
+  // 直接使用 index.html 中预定义好的 sync-modal
+  syncModalBody.innerHTML = body;
+  syncPendingNode = node;
+  syncModal.classList.add('show');
 }
-
 function doSyncToSiblings(includeChildren) {
   const node = syncPendingNode;
   syncPendingNode = null;
@@ -1260,3 +1252,154 @@ document.addEventListener('keydown', e => {
     return;
   }
 });
+
+/* ---------- 装备批量改名 ---------- */
+function showBulkRenameDialog(scopeNode) {
+  const oldDlg = document.getElementById('_bulk_rename_dlg');
+  if (oldDlg) oldDlg.remove();
+
+  const cs = getComputedStyle(document.body);
+  const cPanel  = cs.getPropertyValue('--panel-bg').trim() || '#fff';
+  const cFg     = cs.getPropertyValue('--fg').trim() || '#1e293b';
+  const cBorder = cs.getPropertyValue('--border').trim() || '#e2e8f0';
+  const cLegend = cs.getPropertyValue('--legend-bg').trim() || '#eef2f7';
+  const cInput  = cs.getPropertyValue('--input-border').trim() || '#cbd5e1';
+  const cInputBg= cs.getPropertyValue('--input-bg').trim() || '#fff';
+  const cAccent = cs.getPropertyValue('--accent').trim() || '#2563eb';
+  const cFgMuted= cs.getPropertyValue('--fg-muted').trim() || '#64748b';
+
+  const L = document.createElement('div');
+  L.id = '_bulk_rename_dlg';
+  L.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;z-index:2147483647;';
+
+  const B = document.createElement('div');
+  B.style.cssText = 'background:'+cPanel+';color:'+cFg+';border:1px solid '+cBorder+';border-radius:12px;padding:20px 22px;width:min(420px,92vw);box-shadow:0 20px 40px rgba(0,0,0,.3);';
+
+  B.innerHTML = `
+    <h3 style="margin:0 0 14px;font-size:15px;color:${cFg};padding-bottom:10px;border-bottom:1px solid ${cBorder};">🔧 一键修改装备名称</h3>
+    
+    <label style="display:block;font-size:12px;color:${cFgMuted};margin-bottom:6px;">原装备名称</label>
+    <input type="text" id="_bulk_old" placeholder="例如：主战坦克" style="width:100%;font:inherit;font-size:13px;padding:8px 10px;margin-bottom:12px;border:1px solid ${cInput};background:${cInputBg};color:${cFg};border-radius:6px;outline:none;box-sizing:border-box;">
+    
+    <label style="display:block;font-size:12px;color:${cFgMuted};margin-bottom:6px;">新装备名称</label>
+    <input type="text" id="_bulk_new" placeholder="例如：ZTZ-99A" style="width:100%;font:inherit;font-size:13px;padding:8px 10px;margin-bottom:12px;border:1px solid ${cInput};background:${cInputBg};color:${cFg};border-radius:6px;outline:none;box-sizing:border-box;">
+    
+    <label style="display:block;font-size:12px;color:${cFgMuted};margin-bottom:6px;">应用范围</label>
+    <select id="_bulk_scope" style="width:100%;font:inherit;font-size:13px;padding:8px 10px;margin-bottom:16px;border:1px solid ${cInput};background:${cInputBg};color:${cFg};border-radius:6px;outline:none;box-sizing:border-box;">
+      <option value="current">当前单位及下属</option>
+      <option value="all">全军（整个编制）</option>
+      <option value="current-only">仅当前单位</option>
+    </select>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button id="_bulk_cancel" style="font:inherit;font-size:13px;padding:8px 14px;border-radius:6px;cursor:pointer;border:1px solid ${cInput};background:${cLegend};color:${cFg};">取消</button>
+      <button id="_bulk_ok" style="font:inherit;font-size:13px;padding:8px 14px;border-radius:6px;cursor:pointer;border:1px solid ${cAccent};background:${cAccent};color:#fff;">确定改名</button>
+    </div>
+  `;
+
+  L.appendChild(B);
+  document.documentElement.appendChild(L);
+
+  const oldField = B.querySelector('#_bulk_old');
+  const newField = B.querySelector('#_bulk_new');
+  const scopeField = B.querySelector('#_bulk_scope');
+
+  setTimeout(() => oldField.focus(), 50);
+
+  function close() { L.remove(); }
+
+  function commit() {
+    const oldVal = oldField.value.trim();
+    const newVal = newField.value.trim();
+    const scope = scopeField.value;
+    if (!oldVal || !newVal) { alert('请输入原装备名称和新装备名称'); return; }
+    if (oldVal === newVal) { close(); return; }
+    close();
+    executeBulkRename(scopeNode, oldVal, newVal, scope);
+  }
+
+  B.querySelector('#_bulk_cancel').addEventListener('click', close);
+  B.querySelector('#_bulk_ok').addEventListener('click', commit);
+
+  const handleEnter = (e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); } };
+  oldField.addEventListener('keydown', handleEnter);
+  newField.addEventListener('keydown', handleEnter);
+
+  L.addEventListener('click', (e) => { if (e.target === L) close(); });
+}
+
+function executeBulkRename(scopeNode, oldName, newName, scope) {
+  let targetNodes = [];
+  if (scope === 'all') {
+    forEachNode(root, n => targetNodes.push(n));
+  } else if (scope === 'current') {
+    forEachNode(scopeNode, n => targetNodes.push(n));
+  } else if (scope === 'current-only') {
+    targetNodes.push(scopeNode);
+  }
+
+  // 先检查是否有变化，避免无意义的撤销记录
+  let hasChange = false;
+  for (const n of targetNodes) {
+    if (n.equipment && n.equipment.some(e => e.name === oldName)) {
+      hasChange = true;
+      break;
+    }
+  }
+
+  if (!hasChange) {
+    toast('未找到匹配的装备', true);
+    return;
+  }
+
+  pushHistory();
+  let changedCount = 0;
+
+  targetNodes.forEach(n => {
+    if (renameInNode(n, oldName, newName)) {
+      changedCount++;
+    }
+  });
+
+  render();
+  if (selectedId && nodeById[selectedId]) fillPanel(nodeById[selectedId]);
+  renderStats();
+  toast(`已为 ${changedCount} 个单位的装备改名`);
+}
+
+function renameInNode(node, oldName, newName) {
+  if (!node.equipment || !node.equipment.length) return false;
+
+  const oldItems = node.equipment.filter(e => e.name === oldName);
+  if (oldItems.length === 0) return false;
+
+  let totalCount = 0;
+  let totalMax = 0;
+
+  oldItems.forEach(e => {
+    totalCount += (e.count || 0);
+    totalMax += (e.countMax || 0);
+  });
+
+  // 移除旧装备
+  node.equipment = node.equipment.filter(e => e.name !== oldName);
+
+  // 查找新名称是否已存在
+  const newItem = node.equipment.find(e => e.name === newName);
+
+  if (newItem) {
+    newItem.count += totalCount;
+    if (totalMax > 0) {
+      // 如果有区间，进行合并
+      newItem.countMax = (newItem.countMax || newItem.count - totalCount) + totalMax;
+    }
+  } else {
+    const newEq = { name: newName, count: totalCount };
+    if (totalMax > totalCount) {
+      newEq.countMax = totalMax;
+    }
+    node.equipment.push(newEq);
+  }
+
+  return true;
+}

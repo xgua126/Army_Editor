@@ -1,6 +1,14 @@
-const VERSION = '1.6.0';
+const VERSION = '1.6.1';
 
 const CHANGELOG = [
+   {
+    version: '1.6.1',
+    date: '2026-09-22',
+    changes: [
+      '新增：一键为装备改名',
+      '修复：同步兄弟单位功能无法使用',
+    ],
+   },
    {
     version: '1.6.0',
     date: '2026-09-22',

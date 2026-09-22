@@ -258,10 +258,6 @@ function checkVersionUpdate() {
 }
 
 /* ---------- 导出 JPG ---------- */
-function escapeXml(s) {
-  return String(s).replace(/[&<>"']/g, ch =>
-    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-}
 function extractSvgInner(svgStr) {
   const m = svgStr.match(/<svg[^>]*>([\s\S]*)<\/svg>/);
   return m ? m[1] : svgStr;
