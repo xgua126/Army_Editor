@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>⚔ 战术模拟 · 军队编制编辑器</title>
+<link rel="stylesheet" href="css/battle.css">
+<style>
+  /* ★ R9.5：玩家操控系统的界面（顶栏弹层 + 底部命令条）—— 只加新样式，不动老样式 */
+  header .controls { flex-wrap: wrap; }
+  header button.ghost { background: rgba(255,255,255,.06); }
+  .pop {
+    position: absolute; top: 46px; right: 120px; z-index: 60;
+    background: rgba(15,23,42,.97); border: 1px solid #334155; border-radius: 8px;
+    padding: 8px 10px; min-width: 168px; box-shadow: 0 8px 24px rgba(0,0,0,.5);
+    display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #e2e8f0;
+  }
+  .pop.hidden { display: none; }
+  .pop label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .pop hr { border: none; border-top: 1px solid #334155; margin: 2px 0; }
+  #display-pop { position: fixed; top: 52px; }
+
+  .cmdbar {
+    position: fixed; left: 50%; transform: translateX(-50%); bottom: 10px; z-index: 55;
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    background: rgba(15,23,42,.94); border: 1px solid #334155; border-radius: 10px;
+    padding: 6px 10px; box-shadow: 0 8px 24px rgba(0,0,0,.5); max-width: calc(100vw - 24px);
+    font: 12px/1.4 system-ui, sans-serif; color: #e2e8f0;
+  }
+  .cmdbar.hidden { display: none; }
+  .cmdbar-info { color: #fcd34d; font-weight: 600; padding-right: 4px; white-space: nowrap; }
+  .cmdbar button {
+    background: rgba(255,255,255,.07); border: 1px solid #334155; border-radius: 6px;
+    color: #e2e8f0; padding: 4px 9px; cursor: pointer; font: inherit; white-space: nowrap;
+  }
+  .cmdbar button:hover { background: rgba(255,255,255,.14); }
+  .cmdbar button.active { background: rgba(96,165,250,.28); border-color: #60a5fa; color: #dbeafe; }
+  .cmdbar-hint { color: #64748b; padding-left: 4px; white-space: nowrap; }
+
+  /* ★★★ R9.6.13：**手机端命令条**（玩家："全部制作一下手机端的适配"）
+     —— 手机上按钮要能点中、放不下就横向滚（不再换行把画布挤没）：
+        · 单行横向滚动 + 隐藏滚动条 + 惯性滚动
+        · 按钮 ≥40px 高、留出 iOS 安全区（底部刘海） */
+  @media (max-width: 900px) {
+    .cmdbar {
+      left: 6px; right: 6px; bottom: 6px; transform: none; max-width: none;
+      flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      padding: 7px 8px calc(7px + env(safe-area-inset-bottom, 0px));
+      gap: 7px;
+    }
+    .cmdbar::-webkit-scrollbar { display: none; }
+    .cmdbar button {
+      flex: 0 0 auto;
+      min-height: 42px; padding: 8px 12px; font-size: 13px;
+    }
+    .cmdbar-info { font-size: 12px; }
+    .cmdbar-hint { display: none; }            /* 提示文案在手机上一行放不下 */
+    #display-pop {
+      left: 8px; right: 8px; top: 56px; width: auto; max-width: none;
+      max-height: 70vh; overflow-y: auto;
+    }
+    .pop { right: 8px; left: 8px; width: auto; min-width: 0; }
+    .pop label { min-height: 34px; }
+    #mobile-hint { display: block; }
+  }
+
+  /* 手机端操作提示条（默认隐藏，只在 ≤900px 显示） */
+  #mobile-hint {
+    display: none;
+    position: fixed; left: 8px; right: 8px; top: 50px; z-index: 50;
+    padding: 5px 9px; border-radius: 8px;
+    background: rgba(15,23,42,.82); border: 1px solid #334155;
+    color: #cbd5e1; font: 11px/1.5 system-ui, sans-serif;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="index.html" class="back-btn" title="返回编辑器">← 返回</a>
+  <span class="logo">⚔ 战术模拟</span>
+
+  <div class="controls">
+    <select id="blue-army" title="选择蓝方编制">
+      <option value="">-- 蓝方编制 --</option>
+    </select>
+    <span class="vs">VS</span>
+    <select id="red-army" title="选择红方编制">
+      <option value="">-- 红方编制 --</option>
+    </select>
+    <label class="ctrl-label">
+      模式
+      <select id="battle-mode">
+        <option value="encounter" selected>遭遇战</option>
+        <option value="assault">蓝方进攻</option>
+        <option value="defend">红方进攻</option>
+      </select>
+    </label>
+    <label class="ctrl-label">
+      地图
+      <select id="battle-map">
+        <option value="">自动（随机）</option>
+        <!-- ★ R9.6.10：官方地图池由 js/maps-presets.js 提供，选项在 JS 里动态生成
+             （buildMapSelect()）—— 旧版把 4 张预设写死在这里，换图就得改两处。 -->
+      </select>
+    </label>
+    <label class="ctrl-label">
+      规模
+      <select id="echelon">
+        <option value="platoon" selected>排级</option>
+        <option value="squad">班级</option>
+        <option value="team">火力组</option>
+        <option value="individual">单兵</option>
+      </select>
+    </label>
+
+    <label class="ctrl-label" title="你亲自带哪一方：那一方的将军让位给你，命令只由你下">
+      👤 我操控
+      <select id="player-side">
+        <option value="blue" selected>蓝方</option>
+        <option value="red">红方</option>
+        <option value="">不操控（纯观战）</option>
+      </select>
+    </label>
+
+    <button id="btn-start" disabled>▶ 开始</button>
+    <button id="btn-pause" disabled>⏸ 暂停</button>
+    <button id="btn-reset">↻ 重置</button>
+    <button id="btn-select-units" disabled title="选择哪几个编制单位参战">👥 参战</button>
+
+    <label class="ctrl-label">
+      速度
+      <select id="speed">
+        <option value="0.5">0.5×</option>
+        <option value="1" selected>1×</option>
+        <option value="2">2×</option>
+        <option value="4">4×</option>
+      </select>
+    </label>
+
+    <button id="btn-display" class="ghost" title="显示选项">👁 显示</button>
+    <div id="display-pop" class="pop hidden">
+      <label><input type="checkbox" id="opt-show-individuals" checked> 单兵小点</label>
+      <label><input type="checkbox" id="opt-show-facing"> 士兵朝向</label>
+      <label><input type="checkbox" id="opt-show-view-cone"> 视野扇形</label>
+      <label><input type="checkbox" id="opt-show-soldier-names"> 单兵名字</label>
+      <label><input type="checkbox" id="opt-show-legend"> 图例</label>
+      <label><input type="checkbox" id="opt-show-diag"> 诊断（逻辑/绘制 ms）</label>
+      <hr>
+      <label><input type="checkbox" id="opt-ai-blue" checked> 蓝方交给 AI（含自主移动）</label>
+      <label><input type="checkbox" id="opt-ai-red" checked> 红方交给 AI（含自主移动）</label>
+    </div>
+  </div>
+
+  <a href="map-editor.html" style="font:inherit;font-size:13px;padding:6px 14px;border-radius:6px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#e2e8f0;cursor:pointer;text-decoration:none;white-space:nowrap;display:inline-flex;align-items:center;">地图编辑器</a>
+</header>
+
+<main>
+  <canvas id="battle-canvas"></canvas>
+
+  <div id="hint" class="hint">
+    <div class="hint-inner">
+      <div class="hint-icon">⚔</div>
+      <div class="hint-title">准备战斗</div>
+      <div class="hint-text">从上方选择蓝红双方编制 → 选「我操控」哪一方 → 点击「开始」</div>
+      <div class="hint-sub">左键框选自己的单位 · 右键下达命令 · 1~9 选命令 · 中键/Alt+左键 平移 · 滚轮缩放</div>
+    </div>
+  </div>
+
+  <div id="result-overlay" class="hidden">
+    <div class="result-card">
+      <h2 id="result-title">战斗结束</h2>
+      <div id="result-content"></div>
+      <div class="result-actions">
+        <button id="result-restart" class="primary">↻ 再打一次</button>
+        <button id="result-close">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="cam-controls">
+    <button id="cam-zoom-in" title="放大">＋</button>
+    <button id="cam-zoom-out" title="缩小">−</button>
+    <button id="cam-reset" title="显示全图" style="font-size:12px;">⤢</button>
+  </div>
+</main>
+
+<!-- ★ R9.6.13：手机端操作提示（桌面隐藏；手机没有右键/滚轮，手势不一样） -->
+<div id="mobile-hint">📱 单指：点选 / 框选 · 双指：平移 + 缩放 · 下令：选部队 → 点命令 → 点目标</div>
+
+<!-- ★★★ R9.5 玩家命令条（取代"命令层 + DEV 面板"当玩家界面用） -->
+<div id="cmdbar" class="cmdbar hidden">
+  <span class="cmdbar-info" id="cmdbar-info">未选中</span>
+  <button data-order="MOVE_TO" title="左键框选单位 → 右键点目标位置（或按 1）">🚶 移动</button>
+  <button data-order="MOVE_TO_FAST" title="沿最近公路走（或按 2）">🛤 快速移动</button>
+  <button data-order="ATTACK" title="打右击位置的敌人（或按 3）">⚔ 攻击</button>
+  <button data-order="HOLD" title="原地固守（或按 4）">🛡 固守</button>
+  <button data-order="TAKE_COVER" title="就地找掩体（或按 5）">🪖 掩体</button>
+  <button data-order="BOARD" title="上车（或按 6）">🚚 上车</button>
+  <button data-order="DISMOUNT" title="下车（或按 7）">🚶‍♂️ 下车</button>
+  <button data-order="RESUPPLY" title="去最近补给点补弹药（或按 8）">📦 补给</button>
+  <button data-order="WITHDRAW" title="脱离接触后撤（或按 9）">↩ 撤退</button>
+  <button data-order="STOP" title="取消命令，交回 AI / 原地（按 0）">✋ 停止</button>
+  <span class="cmdbar-hint" id="cmdbar-hint">左键框选/点选（Shift 加选）· 右键下达 · 1~9 选命令 · Esc 取消 ｜ 点谁命令谁 · 目标点与路线画在地图上</span>
+</div>
+
+<script src="js/dialog.js"></script>
+<script src="js/changelog.js"></script>
+<script src="js/data.js"></script>
+<script src="js/model.js"></script>
+<script src="js/render.js"></script>
+<script src="js/equipment.js"></script>
+<!-- ★ R9.6.10：官方地图池（三张实景自制图）—— 必须在 grid-maps.js 之前加载
+     （initGridMaps() 会读 GRID_MAP_PRESETS 反序列化） -->
+<script src="js/maps-presets.js"></script>
+<script src="js/grid-maps.js"></script>
+<script src="js/battle.js"></script>
+<!-- ★ R9：命令层（玩家/AI 共用的唯一命令管道）+ 将军层（每方一个，只发命令）
+     必须放在 battle.js **之后**：battle.js 里的 `battle` 是顶层 let，
+     这两个文件在加载期不碰它（只在每帧的 updateBattle 里被调用）⇒ 不存在 TDZ。 -->
+<script src="js/cmd.js"></script>
+<script src="js/ai-general.js"></script>
+<script src="js/dev-panel.js"></script>
+
+</body>
+</html>

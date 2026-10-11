@@ -349,3 +349,24 @@ function computeStats(node) {
   }
   return { personnel, personnelMax, equipment, equipmentMax };
 }
+
+/* ---------- 单兵数量估算（参战选择 / 性能上限用）---------- */
+/* 优先级：用户填的人数 > 单兵节点数 > 按层级默认值 */
+const ECHELON_DEFAULT_PERSONNEL = {
+  army: 50000, corps: 20000, division: 10000, brigade: 3000,
+  regiment: 2000, battalion: 400, company: 100, platoon: 30,
+  section: 20, squad: 10, team: 4, individual: 1,
+};
+
+function estimateSoldiers(node) {
+  if (!node) return 0;
+  if (node.echelon === 'individual') return 1;
+  let total = 0, indCount = 0;
+  forEachNode(node, n => {
+    if (n.echelon === 'individual') indCount++;
+    total += n.personnel || 0;
+  });
+  if (total > 0) return total;
+  if (indCount > 0) return indCount;
+  return ECHELON_DEFAULT_PERSONNEL[node.echelon] || 10;
+}

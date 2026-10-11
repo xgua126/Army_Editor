@@ -37,7 +37,7 @@ document.getElementById('save-confirm').addEventListener('click', () => {
     saveModal.classList.remove('show');
     toast('已保存：' + name);
   } catch (e) {
-    alert('保存失败：' + e.message);
+    Dlg.alert('保存失败：' + e.message);
   }
 });
 saveNameInput.addEventListener('keydown', e => {
@@ -91,6 +91,11 @@ function refreshLoadList() {
               const num = parseInt(n.id.slice(1), 10);
               if (num > uid) uid = num;
             });
+            // ★ 自动修复装备引用
+            if (typeof autoRepairRootEquipment === 'function') {
+              const added = autoRepairRootEquipment(root);
+              if (added > 0) toast('已补齐 ' + added + ' 件缺失装备', false);
+            }
             selectedId = null;
             render(); emptyPanel(); renderStats();
             loadModal.classList.remove('show');
@@ -158,12 +163,17 @@ document.getElementById('file-input').addEventListener('change', e => {
         const num = parseInt(n.id.slice(1), 10);
         if (num > uid) uid = num;
       });
+      // ★ 自动修复装备引用
+      if (typeof autoRepairRootEquipment === 'function') {
+        const added = autoRepairRootEquipment(root);
+        if (added > 0) toast('已补齐 ' + added + ' 件缺失装备', false);
+      }
       selectedId = null;
       render(); emptyPanel(); renderStats();
       loadModal.classList.remove('show');
       toast('已导入文件：' + file.name);
     } catch (err) {
-      alert('导入失败：' + err.message);
+      Dlg.alert('导入失败：' + err.message);
     }
   };
   reader.readAsText(file);
@@ -197,6 +207,10 @@ presetConfirmBtn.addEventListener('click', () => {
   if (!builder) return;
   pushHistory();
   root = builder();
+  // ★ 自动修复装备引用
+  if (typeof autoRepairRootEquipment === 'function') {
+    autoRepairRootEquipment(root);
+  }
   selectedId = null;
   render(); emptyPanel(); renderStats();
   presetModal.classList.remove('show');

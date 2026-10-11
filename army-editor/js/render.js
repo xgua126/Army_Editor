@@ -4,6 +4,9 @@
    依赖 model.js（forEachVisibleNode、forEachNode、computeStats 等）
    ============================================================ */
 
+/* 全局开关：兵牌上是否显示人数/装备角标（唯一权威声明，其它脚本读它） */
+let SHOW_NODE_STATS = true;
+
 /* ---------- 主题颜色 ---------- */
 function getThemeColors() {
   const isDark = document.body.classList.contains('dark');
@@ -131,6 +134,7 @@ const PAD_X = 240, PAD_Y = 180;
 
 /* ---------- 主渲染 ---------- */
 function render() {
+  if (!wrapEl || !canvasEl || !svgEl || !nodesEl) return;
   function computeBox(node) {
     const visible = node.collapsed ? [] : node.children;
     if (visible.length === 0) { node._boxW = NODE_W; node._boxH = NODE_H; return; }
@@ -312,12 +316,14 @@ function render() {
 }
 
 function updateNodeLabel(n) {
+  if (!nodesEl) return;
   const el = nodesEl.querySelector(`.node[data-id="${n.id}"] .label`);
   if (el) el.textContent = n.name;
 }
 
 /* ---------- 节点角标刷新（属性面板改动后调用） ---------- */
 function refreshNodeBadges() {
+  if (!nodesEl) return;
   forEachVisibleNode(root, n => {
     const el = nodesEl.querySelector(`.node[data-id="${n.id}"]`);
     if (!el) return;
@@ -357,6 +363,7 @@ function renderEquipStats(equipment, equipmentMax) {
 }
 
 function renderStats() {
+  if (!statsEl) return;
   let html = '';
   if (selectedId && nodeById[selectedId]) {
     const node = nodeById[selectedId];

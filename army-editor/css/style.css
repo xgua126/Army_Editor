@@ -334,7 +334,6 @@
     width:100vw; height:100vh;
     background:rgba(15,23,42,.55);
     display:none; align-items:center; justify-content:center; z-index:999999; }
-  #mobile-more-modal { z-index: 1000000; }
   .modal-mask.show { display:flex; }
   .modal { background:var(--panel-bg); border:1px solid var(--border);
     border-radius:12px; padding:20px 22px; min-width:360px; max-width:90vw;
@@ -460,25 +459,6 @@
     -webkit-tap-highlight-color: transparent;
   }
   .mobile-mask.show { display: block; }
-
-  .mobile-more-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-  .mobile-more-grid button {
-    font: inherit; font-size: 13px;
-    padding: 12px 8px;
-    border-radius: 8px;
-    border: 1px solid var(--input-border);
-    background: var(--legend-bg);
-    color: var(--fg);
-    cursor: pointer;
-    text-align: center;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .mobile-more-grid button:active { background: var(--node-hover); }
-  .mobile-more-grid button.full { grid-column: 1 / -1; }
 
   @media (max-width: 900px) {
     input, select, textarea { font-size: 16px !important; }

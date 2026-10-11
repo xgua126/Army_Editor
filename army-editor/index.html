@@ -14,6 +14,7 @@
 <meta name="copyright" content="本网页由 BiliBili@勘茶Kchs_ 与 DeepSeek 联合创作，禁止移除署名后二次分发或收费">
 <meta name="description" content="军队编制编辑器 · 免费开源的娱乐性工具">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/equipment.css">
 </head>
 <body>
 
@@ -36,9 +37,11 @@
   <button id="btn-toggle-stats" class="desktop-only" title="切换兵牌上是否显示人数与装备">👁 显示统计</button>
   <button id="btn-changelog" class="desktop-only">📜 更新日志</button>
   <button id="btn-renumber" class="primary desktop-only">自动编号</button>
+  <button id="btn-equip-lib" class="desktop-only">装备库</button>
 
   <button id="btn-save" class="green">💾 保存</button>
-  <button id="btn-export-img" class="desktop-only">🖼 导出图片</button>
+  <button id="btn-export-img" class="desktop-only">导出图片</button>
+  <a href="battle.html" class="desktop-only" id="btn-battle" style="font:inherit;font-size:13px;padding:7px 12px;border-radius:6px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#e2e8f0;cursor:pointer;transition:.15s;text-decoration:none;white-space:nowrap;display:inline-flex;align-items:center;" onmouseover="this.style.background='rgba(255,255,255,.18)'" onmouseout="this.style.background='rgba(255,255,255,.08)'">⚔ 战斗测试</a>
 
   <button class="mobile-only" id="mobile-open-props" title="单位属性">⚙</button>
   <button class="mobile-only" id="mobile-open-help" title="操作指引" style="font-weight:700;">?</button>
@@ -377,29 +380,6 @@
   </div>
 </div>
 
-<div class="modal-mask" id="mobile-more-modal" onclick="if(event.target===this)closeMobileMore()">
-  <div class="modal" style="min-width: 0; width: 90vw; max-width: 380px;">
-    <h3>更多功能</h3>
-    <div class="mobile-more-grid">
-      <button class="m-more-btn" data-target="btn-theme">🌙 主题切换</button>
-      <button class="m-more-btn" data-target="btn-undo">↶ 撤销</button>
-      <button class="m-more-btn" data-target="btn-collapse-all">全部折叠</button>
-      <button class="m-more-btn" data-target="btn-expand-all">全部展开</button>
-      <button class="m-more-btn" data-target="btn-load">📂 加载存档</button>
-      <button class="m-more-btn" data-target="btn-preset">🗂 切换预设</button>
-      <button class="m-more-btn" data-target="btn-toggle-stats">👁 显示统计</button>
-      <button class="m-more-btn" data-target="btn-changelog">📜 更新日志</button>
-      <button class="m-more-btn" data-target="btn-export-img">🖼 导出图片</button>
-      <button class="m-more-btn full" data-target="btn-renumber">🔢 自动编号</button>
-    </div>
-    <div class="modal-actions" style="margin-top: 14px;">
-      <button id="mobile-more-close" onclick="closeMobileMore()">
-        关闭
-      </button>
-    </div>
-  </div>
-</div>
-
 <div class="modal-mask" id="custom-modal">
   <div class="modal" style="min-width:0;width:min(720px,94vw);max-width:94vw;max-height:96vh;height:94vh;">
     <h3>✏️ 自定义兵牌</h3>
@@ -445,10 +425,13 @@
     </div>
   </div>
 </div>
+<script src="js/dialog.js"></script>
 <script src="js/changelog.js"></script>
 <script src="js/data.js"></script>
 <script src="js/model.js"></script>
 <script src="js/render.js"></script>
+<script src="js/equipment.js"></script>
+<script src="js/equipment-ui.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/io.js"></script>
 <script>
@@ -464,9 +447,6 @@ console.log(
   'font-size:12px;color:#64748b;'
 );
 
-window.SHOW_NODE_STATS = true;
-
-// 补全缺失的变量声明
 const btnStats = document.getElementById('btn-toggle-stats');
 const welcomeModal = document.getElementById('welcome-modal');
 
@@ -508,8 +488,8 @@ btnTheme.addEventListener('click', () => {
 });
 
 btnStats.addEventListener('click', () => {
-  window.SHOW_NODE_STATS = !window.SHOW_NODE_STATS;
-  btnStats.textContent = window.SHOW_NODE_STATS ? '👁 显示统计' : '👁 隐藏统计';
+  SHOW_NODE_STATS = !SHOW_NODE_STATS;
+  btnStats.textContent = SHOW_NODE_STATS ? '👁 显示统计' : '👁 隐藏统计';
   render();
 });
 
@@ -556,6 +536,9 @@ document.getElementById('welcome-confirm').addEventListener('click', () => {
 
   const builder = PRESETS[welcomePreset] || buildArmorDivision;
   root = builder();
+  if (typeof autoRepairRootEquipment === 'function') {
+    autoRepairRootEquipment(root);
+  }
   selectedId = null;
   render(); emptyPanel(); renderStats();
 
@@ -573,6 +556,8 @@ document.getElementById('toggle-props').addEventListener('click', () => {
 
 document.getElementById('btn-undo').addEventListener('click', undo);
 
+document.getElementById('btn-equip-lib').addEventListener('click', openEquipmentLibrary);
+
 (function installModalWatcher() {
   document.querySelectorAll('.modal-mask').forEach(function(m) {
     var applyShow = function() {
@@ -588,9 +573,7 @@ document.getElementById('btn-undo').addEventListener('click', undo);
       m.style.setProperty('background', 'rgba(15,23,42,.55)', 'important');
       m.style.setProperty('align-items', 'center', 'important');
       m.style.setProperty('justify-content', 'center', 'important');
-      m.style.setProperty('z-index',
-        m.id === 'mobile-more-modal' ? '1000000' : '999999',
-        'important');
+      m.style.setProperty('z-index', '999999', 'important');
     };
     var applyHide = function() {
       m.style.removeProperty('display');
@@ -606,6 +589,11 @@ document.getElementById('btn-undo').addEventListener('click', undo);
 })();
 
 (function boot() {
+  // 首次访问时自动导入默认装备库
+  if (typeof seedEquipmentLibraryIfEmpty === 'function') {
+    seedEquipmentLibraryIfEmpty();
+  }
+
   const cm = document.getElementById('custom-modal');
   if (cm && cm.parentNode !== document.body) {
     document.body.appendChild(cm);
@@ -629,12 +617,19 @@ document.getElementById('btn-undo').addEventListener('click', undo);
       btnTheme.textContent = '🌙 暗黑';
     }
     root = PRESETS[saved.preset]();
+    // ★ 自动修复装备引用
+    if (typeof autoRepairRootEquipment === 'function') {
+      autoRepairRootEquipment(root);
+    }
     selectedId = null;
     render(); emptyPanel(); renderStats();
     refreshLibSymbols();
     setTimeout(checkAutosave, 400);
   } else {
     root = buildArmorDivision();
+    if (typeof autoRepairRootEquipment === 'function') {
+      autoRepairRootEquipment(root);
+    }
     render(); emptyPanel(); renderStats();
     welcomeTheme = 'light';
     welcomePreset = 'armor';

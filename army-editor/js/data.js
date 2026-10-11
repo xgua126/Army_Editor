@@ -193,34 +193,34 @@ function makeBattalion(type, bnP, bnE, coP, coE, plP, plE, sqP, sqE) {
 
 function makeInfantryBattalion() {
   return makeBattalion('infantry',
-    60, [{name:'指挥车',count:1},{name:'迫击炮',count:6},{name:'重机枪',count:6},{name:'轻机枪',count:9}],
-    120, [{name:'迫击炮',count:2},{name:'重机枪',count:2},{name:'轻机枪',count:6}],
-    32, [{name:'轻机枪',count:2},{name:'迫击炮',count:1}],
-    9, [{name:'轻机枪',count:1}]);
+    60, [{name:'指挥车',count:1},{name:'突击步枪',count:15},{name:'迫击炮',count:6},{name:'重机枪',count:6},{name:'轻机枪',count:9}],
+    120, [{name:'突击步枪',count:30},{name:'迫击炮',count:2},{name:'重机枪',count:2},{name:'轻机枪',count:6}],
+    32, [{name:'突击步枪',count:10},{name:'轻机枪',count:2},{name:'迫击炮',count:1}],
+    9, [{name:'突击步枪',count:8},{name:'轻机枪',count:1}]);
 }
 function makeMechBattalion() {
   return makeBattalion('mech',
-    60, [{name:'指挥车',count:2},{name:'重机枪',count:6},{name:'迫击炮',count:6},{name:'轻机枪',count:8}],
-    130, [{name:'步兵战车',count:13},{name:'轻机枪',count:6},{name:'重机枪',count:3},{name:'迫击炮',count:2}],
-    32, [{name:'步兵战车',count:4},{name:'轻机枪',count:3},{name:'反坦克导弹',count:2}],
-    9, [{name:'轻机枪',count:1},{name:'反坦克导弹',count:1}]);
+    60, [{name:'指挥车',count:2},{name:'突击步枪',count:15},{name:'重机枪',count:6},{name:'迫击炮',count:6},{name:'轻机枪',count:8}],
+    130, [{name:'步兵战车',count:13},{name:'突击步枪',count:30},{name:'轻机枪',count:6},{name:'重机枪',count:3},{name:'迫击炮',count:2}],
+    32, [{name:'步兵战车',count:4},{name:'突击步枪',count:10},{name:'轻机枪',count:3},{name:'反坦克导弹',count:2}],
+    9, [{name:'突击步枪',count:8},{name:'轻机枪',count:1},{name:'反坦克导弹',count:1}]);
 }
 function makeArmorBattalion() {
   const bn = newNode('armor','battalion');
   bn.personnel = 52;
-  bn.equipment = [{name:'指挥车',count:2},{name:'重机枪',count:4},{name:'迫击炮',count:2},{name:'轻机枪',count:6}];
+  bn.equipment = [{name:'指挥车',count:2},{name:'突击步枪',count:10},{name:'重机枪',count:4},{name:'迫击炮',count:2},{name:'轻机枪',count:6}];
   for (let c=0;c<3;c++){
     const co = newNode('armor','company');
     co.personnel = 14;
-    co.equipment = [{name:'主战坦克',count:14},{name:'轻机枪',count:4},{name:'重机枪',count:1}];
+    co.equipment = [{name:'主战坦克',count:14},{name:'突击步枪',count:4},{name:'轻机枪',count:4},{name:'重机枪',count:1}];
     for (let p=0;p<3;p++){
       const pl = newNode('armor','platoon');
       pl.personnel = 4;
-      pl.equipment = [{name:'主战坦克',count:4},{name:'轻机枪',count:1}];
+      pl.equipment = [{name:'主战坦克',count:4},{name:'突击步枪',count:1},{name:'轻机枪',count:1}];
       for (let s=0;s<4;s++){
         const sq = newNode('armor','squad');
         sq.personnel = 3;
-        sq.equipment = [{name:'主战坦克',count:1}];
+        sq.equipment = [{name:'主战坦克',count:1},{name:'突击步枪',count:3}];
         pl.children.push(sq);
       }
       co.children.push(pl);
@@ -231,10 +231,10 @@ function makeArmorBattalion() {
 }
 function makeAirborneBattalion() {
   return makeBattalion('airborne',
-    50, [{name:'迫击炮',count:6},{name:'重机枪',count:6},{name:'轻机枪',count:12},{name:'反坦克导弹',count:8}],
-    110, [{name:'迫击炮',count:2},{name:'重机枪',count:2},{name:'轻机枪',count:6},{name:'反坦克导弹',count:2}],
-    30, [{name:'轻机枪',count:2},{name:'反坦克导弹',count:1}],
-    9, [{name:'轻机枪',count:1}]);
+    50, [{name:'突击步枪',count:12},{name:'迫击炮',count:6},{name:'重机枪',count:6},{name:'轻机枪',count:12},{name:'反坦克导弹',count:8}],
+    110, [{name:'突击步枪',count:28},{name:'迫击炮',count:2},{name:'重机枪',count:2},{name:'轻机枪',count:6},{name:'反坦克导弹',count:2}],
+    30, [{name:'突击步枪',count:10},{name:'轻机枪',count:2},{name:'反坦克导弹',count:1}],
+    9, [{name:'突击步枪',count:8},{name:'轻机枪',count:1}]);
 }
 
 function makeArtyBattalion(kind) {

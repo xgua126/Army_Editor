@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>🗺 地图编辑器</title>
+<link rel="stylesheet" href="css/map-editor.css">
+</head>
+<body>
+
+<header>
+  <a href="battle.html" class="back-btn">← 返回战斗</a>
+  <span class="logo">🗺 地图编辑器</span>
+  <!-- ★ R9.6.13：手机端工具抽屉开关（桌面隐藏） -->
+  <button id="btn-mobile-tools" class="mobile-only" title="工具面板">🛠 工具</button>
+
+  <div class="controls">
+    <button id="btn-new">＋ 新建</button>
+    <button id="btn-load">📂 加载</button>
+    <button id="btn-import-overlay">📷 导入参考图</button>
+    <button id="btn-save" class="primary">💾 保存</button>
+    <button id="btn-export">⬇ 导出</button>
+    <button id="btn-import">⬆ 导入</button>
+    <span class="name-label" id="map-name-display">未命名地图</span>
+  </div>
+</header>
+
+<main>
+  <aside class="sidebar">
+    <h3>工具</h3>
+    <div class="tool-grid">
+      <button class="tool-btn active" data-tool="brush">✏ 画笔</button>
+      <button class="tool-btn" data-tool="line">／ 直线</button>
+      <button class="tool-btn" data-tool="rect">▭ 矩形</button>
+      <button class="tool-btn" data-tool="circle">◯ 圆</button>
+      <button class="tool-btn" data-tool="fill">🪣 填充</button>
+      <button class="tool-btn" data-tool="pick">💧 吸管</button>
+      <button class="tool-btn" data-tool="objective">🎯 据点</button>
+      <button class="tool-btn" data-tool="erase-objective">🗑 删据点</button>
+      <button class="tool-btn" data-tool="place-building">🏢 放建筑</button>
+      <button class="tool-btn" data-tool="erase-building">🗑 删建筑</button>
+      <button class="tool-btn" data-tool="spawn-blue">🚩 画蓝方区</button>
+      <button class="tool-btn" data-tool="spawn-red">🚩 画红方区</button>
+      <button class="tool-btn" data-tool="erase-spawn">🗑 清出生区</button>
+      <button class="tool-btn" data-tool="road">🛤 公路</button>
+      <button class="tool-btn" data-tool="supply">📦 补给点</button>
+      <button class="tool-btn" data-tool="erase-supply">🗑 删补给点</button>
+    </div>
+
+    <h3>地形</h3>
+    <div class="palette" id="palette"></div>
+
+    <h3 data-tools="place-building,erase-building">建筑</h3>
+    <div class="building-panel" id="building-panel" data-tools="place-building,erase-building">
+      <div class="building-panel-label">类型</div>
+      <div class="building-types" id="building-types"></div>
+      <div class="building-panel-label">颜色</div>
+      <div class="building-variants" id="building-variants"></div>
+      <div class="building-panel-hint" id="building-panel-hint">点上面的类型即可开始摆放</div>
+    </div>
+    <div class="building-list" id="building-list" data-tools="place-building,erase-building"></div>
+
+    <h3 data-tools="brush,line,rect,circle,fill">笔刷大小</h3>
+    <div class="brush-size" data-tools="brush,line,rect,circle,fill">
+      <input type="range" id="brush-size" min="1" max="40" value="8">
+      <span id="brush-size-label">8 格</span>
+    </div>
+
+    <h3>参考图层</h3>
+    <div class="overlay-panel">
+      <div class="overlay-empty" id="overlay-empty">
+        尚未导入参考图<br>
+        <span style="font-size:10px;color:#475569;">点顶栏「📷 导入参考图」</span>
+      </div>
+      <div class="overlay-controls" id="overlay-controls" style="display:none;">
+        <label class="overlay-row">
+          <input type="checkbox" id="overlay-visible" checked>
+          <span>显示参考图</span>
+        </label>
+        <div class="overlay-row">
+          <span style="font-size:11px;">透明度</span>
+          <input type="range" id="overlay-opacity" min="5" max="100" value="50">
+          <span id="overlay-opacity-label" class="overlay-val">50%</span>
+        </div>
+        <button id="overlay-remove" class="overlay-remove">🗑 移除参考图</button>
+      </div>
+    </div>
+
+    <h3>图层 <button id="btn-add-layer" class="mini-btn" title="新建图层">＋</button></h3>
+    <div class="layer-list" id="layer-list"></div>
+
+    <h3>战斗设置</h3>
+    <div style="margin-bottom:12px;">
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">建议参战人数（每侧）</div>
+      <input type="number" id="soldiers-per-side" min="0" step="10" placeholder="自动（面积×6）" style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.04);color:inherit;border:1px solid #334155;border-radius:6px;padding:6px 8px;font-size:13px;">
+      <div style="font-size:10px;color:#64748b;margin-top:3px;">留空 = 按面积自动</div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <button id="btn-dig-trenches" class="mini-btn" style="width:100%;">🪖 据点周围挖壕</button>
+      <div style="font-size:10px;color:#64748b;margin-top:3px;">给每个据点刷一圈战壕（真实交战区一定会挖壕）</div>
+    </div>
+
+    <h3 data-tools="supply,erase-supply">补给点</h3>
+    <div id="supply-panel" data-tools="supply,erase-supply">
+      <div class="overlay-row">
+        <span style="font-size:11px;">半径</span>
+        <input type="range" id="supply-radius" min="60" max="400" step="10" value="120">
+        <span id="supply-radius-label" class="overlay-val">120m</span>
+      </div>
+      <div style="display:flex;gap:6px;margin:4px 0;">
+        <button id="supply-apply-all" class="mini-btn" style="flex:1;">↔ 半径应用到全部</button>
+      </div>
+      <div class="building-panel-hint" id="supply-panel-hint">还没有补给点</div>
+      <div class="building-list" id="supply-list"></div>
+      <div style="font-size:10px;color:#64748b;line-height:1.5;margin-top:4px;">
+        单位在圈内 <b>停留 ≥3 秒</b> 后开始回补：每秒补 <b>20%</b> 备弹（约 5 秒补满一件武器）。
+        点地图空白 = 放新的；点 <b>圈内</b> = 选中它（再用上面的滑杆改半径）。
+      </div>
+    </div>
+
+    <h3 data-tools="spawn-blue,spawn-red,erase-spawn">出生区</h3>
+    <div id="spawn-panel" data-tools="spawn-blue,spawn-red,erase-spawn">
+      <div class="spawn-panel-row">
+        <span class="spawn-tag" style="color:#60a5fa;">蓝</span>
+        <input type="number" class="spawn-in" id="spawn-blue-x" placeholder="X">
+        <input type="number" class="spawn-in" id="spawn-blue-y" placeholder="Y">
+        <input type="number" class="spawn-in" id="spawn-blue-w" placeholder="宽">
+        <input type="number" class="spawn-in" id="spawn-blue-h" placeholder="高">
+      </div>
+      <div class="spawn-cap" id="spawn-blue-cap">—</div>
+      <div class="spawn-panel-row">
+        <span class="spawn-tag" style="color:#f87171;">红</span>
+        <input type="number" class="spawn-in" id="spawn-red-x" placeholder="X">
+        <input type="number" class="spawn-in" id="spawn-red-y" placeholder="Y">
+        <input type="number" class="spawn-in" id="spawn-red-w" placeholder="宽">
+        <input type="number" class="spawn-in" id="spawn-red-h" placeholder="高">
+      </div>
+      <div class="spawn-cap" id="spawn-red-cap">—</div>
+      <div style="display:flex;gap:6px;margin-bottom:6px;">
+        <button id="spawn-reset" class="mini-btn" style="flex:1;">↺ 按推荐重置</button>
+      </div>
+      <div style="font-size:10px;color:#64748b;line-height:1.5;">
+        选「🚩 画蓝方区 / 画红方区」后在地图上<b>依次点顶点</b>，<b>点在起点上</b>（或按回车）闭合成圈，
+        <b>圈内即出生区</b>；可连续画<b>多块不相连</b>的出生区。<br>
+        ⌫ 撤销上一个点 · <b>Esc / 右键 / 再点一次工具</b> 取消本次绘制 · 🗑 清出生区 = 点哪块删哪块（矩形则整块重置）。<br>
+        X/Y 平移整块、宽/高 按比例缩放；「↺ 按推荐重置」恢复默认矩形。<br>
+        单位会在出生区内<b>均匀铺开</b>，不会被挤成一坨。
+      </div>
+    </div>
+
+    <h3 data-tools="road">公路（矢量）</h3>
+    <div id="road-panel" data-tools="road">
+      <div style="display:flex;gap:6px;margin-bottom:6px;">
+        <button id="btn-road-clear" class="mini-btn" style="flex:1;">🗑 清空公路</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <span style="font-size:11px;color:#94a3b8;white-space:nowrap;">路宽</span>
+        <input type="range" id="road-width" min="1" max="12" step="1" value="2" style="flex:1;">
+        <span id="road-width-label" style="font-size:11px;color:#7cb1f0;min-width:76px;text-align:right;">2 格 · 10 米</span>
+      </div>
+      <div class="route-list" id="road-list"></div>
+      <div id="road-status" style="font-size:11px;color:#94a3b8;margin-top:4px;min-height:15px;line-height:1.4;"></div>
+      <div style="font-size:10px;color:#64748b;line-height:1.5;margin-top:6px;">
+        选「🛤 公路」后在地图上<b>依次点拐点</b>，<b>回车 / 双击</b>结束（⌫ 退点 · <b>Esc / 右键</b>取消）。<br>
+        <b>路宽按「格」给</b>（1 格 = 5 米）：2 格 = 10 米。拐点<b>自动吸附到格心</b> ⇒ 和网格对得齐。<br>
+        画面上是<b>矢量圆角粗线</b>（永远没有锯齿）；宽度会烙成道路格 ⇒ 宽路过大车、1 格小路只够人走。<br>
+        它是"基础设施"：导航、车道、以后的<b>路网图</b>都从它得到中心线和宽度。
+      </div>
+    </div>
+
+    <h3>视图</h3>
+    <div class="view-toggles">
+      <label><input type="checkbox" id="chk-grid"> 显示网格</label>
+      <label><input type="checkbox" id="chk-objectives" checked> 显示据点</label>
+    </div>
+
+    <div class="hint">
+      <b>操作</b><br>
+      · 左键：使用当前工具<br>
+      · 右键：平移画布<br>
+      · 滚轮：缩放<br>
+      · 快捷键：B/L/R/C/F/P<br>
+      <b>手机</b><br>
+      · 单指：用当前工具<br>
+      · 双指拖动：平移画布<br>
+      · 双指捏合：缩放<br>
+      · 点顶栏「🛠 工具」开关工具面板
+    </div>
+  </aside>
+
+  <div class="canvas-wrap" id="canvas-wrap">
+    <canvas id="editor-canvas"></canvas>
+    <canvas id="preview-canvas"></canvas>
+    <div class="status-bar" id="status-bar">
+      <span id="status-tool">工具: ✏ 画笔</span>
+      <span id="status-coord">—</span>
+      <span id="status-terrain">—</span>
+      <span id="status-zoom">100%</span>
+    </div>
+  </div>
+</main>
+
+<input type="file" id="file-input" accept=".json" style="display:none">
+<input type="file" id="overlay-input" accept="image/*" style="display:none">
+
+<div class="modal-mask" id="new-modal">
+  <div class="modal">
+    <h3>新建地图</h3>
+    <div class="field">
+      <label>地图名称</label>
+      <input type="text" id="new-name" value="我的地图" maxlength="30">
+    </div>
+
+    <div class="field">
+      <label>推荐尺寸（点击填入）</label>
+      <div class="preset-sizes">
+        <button type="button" data-w="6000" data-h="4000">单兵 6×4km</button>
+        <button type="button" data-w="10000" data-h="6000">火力组 10×6km</button>
+        <button type="button" data-w="14000" data-h="9000">班级 14×9km</button>
+        <button type="button" data-w="20000" data-h="12000">排级 20×12km</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>宽度 (m) <span class="hint-range">建议 2000 ~ 30000</span></label>
+      <input type="number" id="new-w" value="13000" min="2000" max="30000" step="500">
+    </div>
+    <div class="field">
+      <label>高度 (m) <span class="hint-range">建议 2000 ~ 20000</span></label>
+      <input type="number" id="new-h" value="7000" min="2000" max="20000" step="500">
+    </div>
+
+    <div class="field">
+      <label>建议参战人数（每侧） <span class="hint-range">留空 = 按面积自动</span></label>
+      <input type="number" id="new-soldiers" value="" min="0" step="10" placeholder="自动（面积×6）">
+    </div>
+
+    <div class="size-warning" id="size-warning" style="display:none;">
+      ⚠ <span id="size-warning-text"></span>
+    </div>
+
+    <div class="size-info" id="size-info">
+      格大小：<b>5 m</b> · 预计格子数：<b id="cell-count">—</b> · 建议人数：<b id="size-soldiers">—</b>
+    </div>
+
+    <div class="modal-actions">
+      <button id="new-cancel">取消</button>
+      <button id="new-confirm" class="primary">创建</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="load-modal">
+  <div class="modal">
+    <h3>加载地图</h3>
+    <div class="load-list" id="load-list"></div>
+    <div class="modal-actions">
+      <button id="load-cancel">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="obj-modal">
+  <div class="modal">
+    <h3>新增据点</h3>
+    <div class="field">
+      <label>名称</label>
+      <input type="text" id="obj-name" value="据点" maxlength="20">
+    </div>
+    <div class="field">
+      <label>半径 (m)</label>
+      <input type="number" id="obj-r" value="500" min="100" max="5000" step="100">
+    </div>
+    <div class="modal-actions">
+      <button id="obj-cancel">取消</button>
+      <button id="obj-confirm" class="primary">确定</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/dialog.js"></script>
+<script src="js/maps-presets.js"></script>
+<script src="js/grid-maps.js"></script>
+<script src="js/map-editor.js"></script>
+
+</body>
+</html>

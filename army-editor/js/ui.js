@@ -434,7 +434,7 @@ document.getElementById('custom-confirm').addEventListener('click', () => {
   const name = customNameInp.value.trim();
   if (!name) { customNameInp.focus(); return; }
   if (!customDraft.main.length && !customDraft.s1.length && !customDraft.s2.length) {
-    alert('请至少选择一个部件');
+    Dlg.alert('请至少选择一个部件');
     return;
   }
 
@@ -632,14 +632,12 @@ function fillPanel(node) {
     <div class="field">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
         <label style="margin:0;">本级装备</label>
-        <button id="btn-bulk-rename-equip" style="font-size:11px; padding:3px 8px; border-radius:4px; border:1px solid var(--accent); background:var(--panel-bg); color:var(--accent); cursor:pointer; transition:.15s; width:auto; margin:0;">一键改名</button>
+        <div style="display:flex;gap:6px;">
+          <button id="btn-equip-pick" style="font-size:11px; padding:3px 8px; border-radius:4px; border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer; width:auto; margin:0;">＋ 添加</button>
+          <button id="btn-bulk-rename-equip" style="font-size:11px; padding:3px 8px; border-radius:4px; border:1px solid var(--accent); background:var(--panel-bg); color:var(--accent); cursor:pointer; width:auto; margin:0;">一键改名</button>
+        </div>
       </div>
       <div id="equip-list" class="equip-list"></div>
-      <div class="equip-add">
-        <input id="equip-name" type="text" placeholder="装备名称">
-        <input id="equip-count" type="number" min="1" step="1" placeholder="数量">
-        <button id="equip-add-btn" type="button" title="添加装备">＋</button>
-      </div>
     </div>
     <div class="btns">
       <button id="btn-add" class="primary">＋ 添加下属单位</button>
@@ -719,25 +717,23 @@ function fillPanel(node) {
 
   renderEquipEditor(node);
 
-  document.getElementById('equip-add-btn').addEventListener('click', () => {
-    const nameInp = document.getElementById('equip-name');
-    const countInp = document.getElementById('equip-count');
-    const name = nameInp.value.trim();
-    const count = parseInt(countInp.value, 10) || 0;
-    if (!name || count <= 0) { countInp.focus(); return; }
-    if (!node.equipment) node.equipment = [];
-    const existing = node.equipment.find(e => e.name === name);
-    if (existing) existing.count += count;
-    else node.equipment.push({ name, count });
-    nameInp.value = ''; countInp.value = ''; nameInp.focus();
-    renderEquipEditor(node);
-    refreshNodeBadges();
-    renderStats();
-  });
-
-  ['equip-name', 'equip-count'].forEach(id => {
-    document.getElementById(id).addEventListener('keydown', e => {
-      if (e.key === 'Enter') { e.preventDefault(); document.getElementById('equip-add-btn').click(); }
+  document.getElementById('btn-equip-pick').addEventListener('click', () => {
+    openEquipmentPicker(eq => {
+      if (!node.equipment) node.equipment = [];
+      const existing = node.equipment.find(e => e.eqId === eq.id);
+      if (existing) {
+        existing.count = (existing.count || 0) + 1;
+      } else {
+        node.equipment.push({
+          eqId: eq.id,
+          name: eq.name,
+          count: 1,
+          countMax: 0
+        });
+      }
+      renderEquipEditor(node);
+      refreshNodeBadges();
+      renderStats();
     });
   });
 
@@ -772,17 +768,38 @@ function fillPanel(node) {
 function renderEquipEditor(node) {
   const list = document.getElementById('equip-list');
   if (!list) return;
+
+  // 自动升级旧数据（给没有 eqId 的装备补关联）
+  if (node.equipment && node.equipment.some(e => !e.eqId)) {
+    upgradeNodeEquipmentReferences(node);
+  }
+
   const eqs = node.equipment || [];
-  if (!eqs.length) { list.innerHTML = '<div class="stats-empty">尚未添加装备</div>'; return; }
-  list.innerHTML = eqs.map((e, i) => `
-    <div class="equip-item">
-      <span class="name" title="${escapeHtml(e.name)}">${escapeHtml(e.name)}</span>
-      <input type="number" min="0" step="1" value="${e.count}" data-idx="${i}" class="equip-count-input" placeholder="最低">
-      <span style="color:var(--fg-dim);font-size:11px;">—</span>
-      <input type="number" min="0" step="1" value="${e.countMax || ''}" data-idx="${i}" class="equip-countmax-input" placeholder="加强">
-      <button class="del" data-idx="${i}" title="删除">✕</button>
-    </div>
-  `).join('');
+  if (!eqs.length) {
+    list.innerHTML = '<div class="stats-empty">尚未添加装备</div>';
+    return;
+  }
+
+  list.innerHTML = eqs.map((e, i) => {
+    // 从装备库取权威名字
+    const lib = getEquipmentLibrary();
+    const libEq = lib[e.eqId];
+    const displayName = libEq ? libEq.name : (e.name || '（已删除）');
+    const missing = !libEq;
+
+    return `
+      <div class="equip-item" data-idx="${i}"${missing ? ' style="opacity:.5;"' : ''}>
+        <span class="name" title="${escapeHtml(displayName)}${missing ? '（装备库中已删除）' : ''}">
+          ${escapeHtml(displayName)}
+        </span>
+        <input type="number" min="0" step="1" value="${e.count}" data-idx="${i}" class="equip-count-input" placeholder="最低">
+        <span style="color:var(--fg-dim);font-size:11px;">—</span>
+        <input type="number" min="0" step="1" value="${e.countMax || ''}" data-idx="${i}" class="equip-countmax-input" placeholder="加强">
+        <button class="edit-eq" data-eqid="${e.eqId || ''}" title="编辑装备数值" style="background:none;border:none;cursor:pointer;color:var(--accent);font-size:13px;padding:0 3px;">📝</button>
+        <button class="del" data-idx="${i}" title="删除">✕</button>
+      </div>
+    `;
+  }).join('');
 
   list.querySelectorAll('.equip-count-input').forEach(inp => {
     inp.addEventListener('input', ev => {
@@ -805,6 +822,18 @@ function renderEquipEditor(node) {
       const idx = parseInt(ev.target.dataset.idx, 10);
       node.equipment.splice(idx, 1);
       renderEquipEditor(node); refreshNodeBadges(); renderStats();
+    });
+  });
+  list.querySelectorAll('.edit-eq').forEach(btn => {
+    btn.addEventListener('click', ev => {
+      ev.stopPropagation();
+      const eqId = btn.dataset.eqid;
+      if (!eqId) { toast('此装备未关联装备库', true); return; }
+      openEquipmentEditor(eqId, () => {
+        renderEquipEditor(node);
+        refreshNodeBadges();
+        renderStats();
+      });
     });
   });
 }
@@ -948,91 +977,18 @@ function toast(msg, isErr) {
 /* ---------- 弹窗工具 ---------- */
 /* ---------- 通用输入弹窗（替代 prompt）---------- */
 function showInputDialog(opts, onConfirm) {
-  var old = document.getElementById('_input_dlg');
-  if (old) old.remove();
-  var cs = getComputedStyle(document.body);
-  var cPanel  = cs.getPropertyValue('--panel-bg').trim() || '#fff';
-  var cFg     = cs.getPropertyValue('--fg').trim() || '#1e293b';
-  var cBorder = cs.getPropertyValue('--border').trim() || '#e2e8f0';
-  var cLegend = cs.getPropertyValue('--legend-bg').trim() || '#eef2f7';
-  var cInput  = cs.getPropertyValue('--input-border').trim() || '#cbd5e1';
-  var cInputBg= cs.getPropertyValue('--input-bg').trim() || '#fff';
-  var cAccent = cs.getPropertyValue('--accent').trim() || '#2563eb';
-  var cFgMuted= cs.getPropertyValue('--fg-muted').trim() || '#64748b';
-
-  var L = document.createElement('div');
-  L.id = '_input_dlg';
-  L.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;z-index:2147483647;';
-
-  var B = document.createElement('div');
-  B.style.cssText = 'background:'+cPanel+';color:'+cFg+';border:1px solid '+cBorder+';border-radius:12px;padding:20px 22px;width:min(420px,92vw);box-shadow:0 20px 40px rgba(0,0,0,.3);';
-
-  B.innerHTML =
-    '<h3 style="margin:0 0 14px;font-size:15px;color:'+cFg+';padding-bottom:10px;border-bottom:1px solid '+cBorder+';">'+ escapeHtml(opts.title || '输入') +'</h3>' +
-    (opts.label ? '<label style="display:block;font-size:12px;color:'+cFgMuted+';margin-bottom:6px;">'+ escapeHtml(opts.label) +'</label>' : '') +
-    '<input type="text" id="_input_dlg_field" value="'+
-      escapeHtml(opts.defaultValue || '') +
-      '" placeholder="'+ escapeHtml(opts.placeholder || '') +'"' +
-      (opts.maxLength ? ' maxlength="'+opts.maxLength+'"' : '') +
-      ' style="width:100%;font:inherit;font-size:14px;padding:9px 11px;border:1px solid '+cInput+';background:'+cInputBg+';color:'+cFg+';border-radius:6px;outline:none;box-sizing:border-box;">' +
-    '<div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end;">' +
-      '<button id="_input_dlg_cancel" style="font:inherit;font-size:13px;padding:8px 14px;border-radius:6px;cursor:pointer;border:1px solid '+cInput+';background:'+cLegend+';color:'+cFg+';">取消</button>' +
-      '<button id="_input_dlg_ok" style="font:inherit;font-size:13px;padding:8px 14px;border-radius:6px;cursor:pointer;border:1px solid '+cAccent+';background:'+cAccent+';color:#fff;">确定</button>' +
-    '</div>';
-
-  L.appendChild(B);
-  document.documentElement.appendChild(L);
-
-  var field = B.querySelector('#_input_dlg_field');
-  setTimeout(function(){ field.focus(); field.select(); }, 50);
-
-  function close() { L.remove(); }
-  function commit() { var v = field.value; close(); onConfirm(v); }
-
-  B.querySelector('#_input_dlg_cancel').addEventListener('click', close);
-  B.querySelector('#_input_dlg_ok').addEventListener('click', commit);
-  field.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') { e.preventDefault(); commit(); }
-    if (e.key === 'Escape') { e.preventDefault(); close(); }
-  });
-  L.addEventListener('click', function(e) { if (e.target === L) close(); });
+  /* ★ R9.6.11：统一走 `dialog.js` 的 Dlg（同一套外观、非阻塞）——这里只保留旧的回调风格壳 */
+  var o = opts || {};
+  Dlg.prompt(o.label || o.title || '输入', o.defaultValue == null ? '' : o.defaultValue,
+             { title: o.title || '输入' })
+    .then(function (v) { if (v !== null && v !== undefined) onConfirm(v); });
 }
 
 /* ---------- 通用确认弹窗（替代 confirm）---------- */
 function showConfirmDialog(title, message, onConfirm) {
-  var old = document.getElementById('_confirm_dlg');
-  if (old) old.remove();
-  var cs = getComputedStyle(document.body);
-  var cPanel  = cs.getPropertyValue('--panel-bg').trim() || '#fff';
-  var cFg     = cs.getPropertyValue('--fg').trim() || '#1e293b';
-  var cBorder = cs.getPropertyValue('--border').trim() || '#e2e8f0';
-  var cLegend = cs.getPropertyValue('--legend-bg').trim() || '#eef2f7';
-  var cInput  = cs.getPropertyValue('--input-border').trim() || '#cbd5e1';
-  var cFgMuted= cs.getPropertyValue('--fg-muted').trim() || '#64748b';
-  var cDanger = '#dc2626';
-
-  var L = document.createElement('div');
-  L.id = '_confirm_dlg';
-  L.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;z-index:2147483647;';
-
-  var B = document.createElement('div');
-  B.style.cssText = 'background:'+cPanel+';color:'+cFg+';border:1px solid '+cBorder+';border-radius:12px;padding:20px 22px;width:min(420px,92vw);box-shadow:0 20px 40px rgba(0,0,0,.3);';
-
-  B.innerHTML =
-    '<h3 style="margin:0 0 14px;font-size:15px;color:'+cFg+';padding-bottom:10px;border-bottom:1px solid '+cBorder+';">'+ escapeHtml(title) +'</h3>' +
-    '<div style="font-size:13px;color:'+cFgMuted+';line-height:1.7;">'+ message +'</div>' +
-    '<div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end;">' +
-      '<button id="_confirm_dlg_cancel" style="font:inherit;font-size:13px;padding:8px 14px;border-radius:6px;cursor:pointer;border:1px solid '+cInput+';background:'+cLegend+';color:'+cFg+';">取消</button>' +
-      '<button id="_confirm_dlg_ok" style="font:inherit;font-size:13px;padding:8px 14px;border-radius:6px;cursor:pointer;border:1px solid '+cDanger+';background:'+cDanger+';color:#fff;">确定</button>' +
-    '</div>';
-
-  L.appendChild(B);
-  document.documentElement.appendChild(L);
-
-  function close() { L.remove(); }
-  B.querySelector('#_confirm_dlg_cancel').addEventListener('click', close);
-  B.querySelector('#_confirm_dlg_ok').addEventListener('click', function() { close(); onConfirm(); });
-  L.addEventListener('click', function(e) { if (e.target === L) close(); });
+  /* ★ R9.6.11：同上 —— 统一到 Dlg（原来是第二份几乎一样的实现） */
+  Dlg.confirm(message, { title: title || '请确认' })
+    .then(function (ok) { if (ok) onConfirm(); });
 }
 
 /* ---------- 移动端 ---------- */
@@ -1062,8 +1018,6 @@ window.addEventListener('resize', () => {
 });
 
 /* ---------- 移动端"更多"弹窗 ---------- */
-const mobileMoreModal = document.getElementById('mobile-more-modal');
-
 function openMobileMore() {
   var old = document.getElementById('_mmpop');
   if (old) old.remove();
@@ -1130,8 +1084,8 @@ function openMobileMore() {
           case 'btn-load': refreshLoadList(); loadModal.classList.add('show'); break;
           case 'btn-preset': presetModal.classList.add('show'); break;
           case 'btn-toggle-stats':
-            window.SHOW_NODE_STATS = !window.SHOW_NODE_STATS;
-            document.getElementById('btn-toggle-stats').textContent = window.SHOW_NODE_STATS ? '👁 显示统计' : '👁 隐藏统计';
+            SHOW_NODE_STATS = !SHOW_NODE_STATS;
+            document.getElementById('btn-toggle-stats').textContent = SHOW_NODE_STATS ? '👁 显示统计' : '👁 隐藏统计';
             render(); break;
           case 'btn-changelog': showChangelogModal(); break;
           case 'btn-renumber':
@@ -1145,14 +1099,6 @@ function openMobileMore() {
   });
 }
 
-function closeMobileMore() {
-  mobileMoreModal.style.display = 'none';
-}
-
-document.getElementById('mobile-more-close').addEventListener('click', () => {
-  mobileMoreModal.classList.remove('show');
-});
-
 /* ---------- 全局快捷键 ---------- */
 document.addEventListener('keydown', e => {
   const tag = (e.target.tagName || '').toLowerCase();
@@ -1165,7 +1111,7 @@ document.addEventListener('keydown', e => {
       (saveModal.classList.contains('show') ||
        loadModal.classList.contains('show') ||
        presetModal.classList.contains('show') ||
-       welcomeModal.classList.contains('show'))) return;
+       (typeof welcomeModal !== 'undefined' && welcomeModal.classList.contains('show')))) return;
 
   const ctrl = e.ctrlKey || e.metaKey;
 
@@ -1312,7 +1258,7 @@ function showBulkRenameDialog(scopeNode) {
     const oldVal = oldField.value.trim();
     const newVal = newField.value.trim();
     const scope = scopeField.value;
-    if (!oldVal || !newVal) { alert('请输入原装备名称和新装备名称'); return; }
+    if (!oldVal || !newVal) { Dlg.alert('请输入原装备名称和新装备名称'); return; }
     if (oldVal === newVal) { close(); return; }
     close();
     executeBulkRename(scopeNode, oldVal, newVal, scope);

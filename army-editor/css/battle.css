@@ -1,0 +1,431 @@
+/* ============================================================
+   战斗测试 · 样式表
+   ============================================================ */
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #0b1220;
+  color: #e2e8f0;
+}
+body { display: flex; flex-direction: column; }
+
+/* ---------- 顶栏 ---------- */
+header {
+  flex: none;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 18px;
+  background: linear-gradient(180deg, #0f172a, #0b1220);
+  border-bottom: 1px solid #1e293b;
+  z-index: 10;
+}
+header .back-btn {
+  font-size: 13px;
+  color: #94a3b8;
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #1e293b;
+  transition: .15s;
+}
+header .back-btn:hover {
+  color: #7cb1f0;
+  border-color: #3b82f6;
+  background: rgba(59,130,246,.08);
+}
+header .logo {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: .3px;
+  color: #7cb1f0;
+}
+header .controls {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+header select {
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #e2e8f0;
+  outline: none;
+  transition: .15s;
+  max-width: 200px;
+}
+header select:focus { border-color: #3b82f6; }
+header .vs {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+header button {
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.08);
+  color: #e2e8f0;
+  cursor: pointer;
+  transition: .15s;
+  white-space: nowrap;
+}
+header button:hover:not(:disabled) {
+  background: rgba(255,255,255,.16);
+}
+header button.primary {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #fff;
+}
+header button.primary:hover:not(:disabled) {
+  background: #2563eb;
+}
+header button:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+header .speed-label {
+  font-size: 12px;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+header .speed-label select {
+  padding: 4px 6px;
+  font-size: 12px;
+  max-width: 80px;
+}
+
+/* ---------- 主体 ---------- */
+main {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+#battle-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+/* ---------- 提示 ---------- */
+.hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  transition: opacity .3s;
+}
+.hint.hidden { opacity: 0; }
+.hint-inner {
+  text-align: center;
+  padding: 30px 40px;
+  background: rgba(15, 23, 42, .75);
+  border: 1px solid #1e293b;
+  border-radius: 16px;
+  backdrop-filter: blur(6px);
+}
+.hint-icon { font-size: 40px; margin-bottom: 12px; }
+.hint-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #7cb1f0;
+  margin-bottom: 8px;
+}
+.hint-text {
+  font-size: 13px;
+  color: #94a3b8;
+  margin-bottom: 6px;
+}
+.hint-sub {
+  font-size: 11px;
+  color: #64748b;
+}
+
+/* ---------- 结果遮罩 ---------- */
+#result-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, .75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(4px);
+  transition: opacity .3s;
+}
+#result-overlay.hidden {
+  display: none;
+}
+.result-card {
+  background: #131f36;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 28px 32px;
+  min-width: 380px;
+  max-width: 90vw;
+  box-shadow: 0 20px 60px rgba(0,0,0,.6);
+}
+.result-card h2 {
+  margin: 0 0 20px;
+  font-size: 22px;
+  text-align: center;
+  color: #7cb1f0;
+}
+.result-card h2.victory-blue { color: #60a5fa; }
+.result-card h2.victory-red  { color: #f87171; }
+.result-card h2.draw         { color: #fbbf24; }
+
+.result-stats {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.result-side {
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid #1e293b;
+  text-align: center;
+}
+.result-side.blue {
+  background: rgba(59,130,246,.08);
+  border-color: rgba(59,130,246,.3);
+}
+.result-side.red {
+  background: rgba(239,68,68,.08);
+  border-color: rgba(239,68,68,.3);
+}
+.result-side .side-name {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.result-side.blue .side-name { color: #60a5fa; }
+.result-side.red .side-name  { color: #f87171; }
+.result-side .stat {
+  font-size: 12px;
+  color: #94a3b8;
+  padding: 2px 0;
+}
+.result-side .stat b {
+  color: #e2e8f0;
+  font-size: 14px;
+}
+.result-vs {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+.result-duration {
+  text-align: center;
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 20px;
+}
+.result-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.result-actions button {
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #e2e8f0;
+  transition: .15s;
+}
+.result-actions button:hover {
+  background: #334155;
+}
+.result-actions button.primary {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #fff;
+}
+.result-actions button.primary:hover {
+  background: #2563eb;
+}
+
+/* ---------- 移动端 ---------- */
+@media (max-width: 900px) {
+  header {
+    height: auto;
+    padding: 8px 10px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  header .logo { font-size: 13px; }
+  header .back-btn { font-size: 12px; padding: 5px 8px; }
+  header .controls {
+    margin-left: 0;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  header select {
+    font-size: 12px;
+    padding: 5px 6px;
+    max-width: 100%;
+    flex: 1 1 120px;
+  }
+  header button {
+    font-size: 12px;
+    padding: 5px 10px;
+  }
+  .result-card {
+    padding: 20px;
+    min-width: 0;
+    width: 92vw;
+  }
+  .result-card h2 { font-size: 18px; }
+  .result-stats {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .result-vs { display: none; }
+
+  /* ★ R9.6.13：**手机端触摸适配**
+     · 画布手势全部交给脚本（双指平移/缩放、单指框选/点选），禁止浏览器抢事件
+     · 按钮/下拉放大到 ≥40px（手指点得中）
+     · 相机控件缩小并避开底部命令条 */
+  #battle-canvas { touch-action: none; -webkit-user-select: none; user-select: none; }
+  header button, header .back-btn { min-height: 38px; }
+  header select { min-height: 34px; }
+  .cam-controls { right: 8px; bottom: 92px; padding: 5px; gap: 4px; }
+  .cam-controls button { min-width: 36px; min-height: 36px; font-size: 14px; }
+  #result-overlay { padding: 12px; }
+}
+
+header .ctrl-label {
+  font-size: 12px;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+header .ctrl-label select {
+  padding: 4px 6px;
+  font-size: 12px;
+  max-width: 80px;
+}
+
+/* ---------- 相机控件 ---------- */
+.cam-controls {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 6px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.4);
+  z-index: 20;
+}
+.cam-controls button {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: .15s;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.cam-controls button:hover { background: #1e293b; border-color: #3b82f6; }
+.cam-controls button:active { background: #334155; }
+
+#battle-canvas { cursor: grab; }
+#battle-canvas.panning { cursor: grabbing; }
+
+header button.active-pause {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  color: #fff;
+}
+
+/* ---------- AI 调试浮层 ---------- */
+#_debug_overlay {
+  position: fixed;
+  top: 60px; right: 12px;
+  width: 340px;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  background: rgba(15, 23, 42, 0.92);
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  z-index: 50;
+  display: none;
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  pointer-events: auto;
+}
+#_debug_overlay .dbg-h {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: #7cb1f0;
+  margin: 8px 0 4px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid #334155;
+}
+#_debug_overlay .dbg-h:first-child { margin-top: 0; }
+#_debug_overlay .dbg-g {
+  margin: 6px 0 2px;
+  color: #cbd5e1;
+  font-weight: 600;
+  font-size: 11px;
+}
+#_debug_overlay .dbg-u {
+  display: flex;
+  gap: 6px;
+  padding: 1px 0 1px 12px;
+  color: #cbd5e1;
+  font-size: 11px;
+}
+#_debug_overlay .dbg-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 1px 0;
+  color: #cbd5e1;
+  font-size: 11px;
+}
