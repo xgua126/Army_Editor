@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>🎲 回合制兵棋 · 军队编制编辑器</title>
+<link rel="stylesheet" href="css/wargame.css">
+</head>
+<body>
+
+<header>
+  <a href="index.html" class="back-btn" title="返回编辑器">← 返回</a>
+  <span class="logo">🎲 回合制兵棋</span>
+  <a href="map-editor.html" class="back-btn" title="地图编辑器（六角格 / 自由二合一）：画地形 / 公路 / 建筑 / 据点 / 部署区">🗺 地图编辑器</a>
+
+  <div class="controls">
+    <label>地图 <select id="wg-map" title="地图编辑器画的图都能选：六角格地图已逐格烘焙好；老 5m 地图按格内面积占比现算"></select></label>
+    <!-- ★ R10.39：直接从文件导入地图 / 编制 -->
+    <button id="wg-import-map" class="import-btn" title="从文件导入地图（地图编辑器「⬇ 导出」的 .json）">📂 地图文件</button>
+    <label>蓝方 <select id="wg-blue" title="来自编制存档 / 导入的编制文件"></select></label>
+    <label>红方 <select id="wg-red" title="来自编制存档 / 导入的编制文件"></select></label>
+    <button id="wg-import-army" class="import-btn" title="从文件导入编制（军队编制编辑器「💾 保存到文件」的 .json）">📂 编制文件</button>
+    <label>棋子粒度
+      <select id="wg-ech" title="基础棋子层级：班 = 9~10 人">
+        <option value="squad" selected>班</option>
+        <option value="team">火力组</option>
+        <option value="section">分队</option>
+        <option value="platoon">排</option>
+        <option value="company">连</option>
+      </select>
+    </label>
+    <!-- ★ R10.23：部署模式（攻防：守 80% / 攻 20%；遭遇：双方各 20%） -->
+    <label>部署
+      <select id="wg-mode" title="攻防：防守方 80% 部署区、进攻方 20%；遭遇：双方各 20%（中间是无人区）">
+        <option value="meeting" selected>遭遇</option>
+        <option value="attack">攻防</option>
+      </select>
+    </label>
+    <label id="wg-defender-wrap" class="hidden">防守
+      <select id="wg-defender" title="攻防模式下谁是防守方（另一方是进攻方）">
+        <option value="red" selected>红方</option>
+        <option value="blue">蓝方</option>
+      </select>
+    </label>
+    <button id="wg-start" class="primary">▶ 开始</button>
+  </div>
+</header>
+
+<main>
+  <div id="wg-stage">
+    <canvas id="wg-canvas"></canvas>
+
+    <div id="wg-hint" class="hint">
+      <div class="hint-inner">
+        <div class="hint-icon">🎲</div>
+        <div class="hint-title">六角格兵棋</div>
+        <div class="hint-text">选地图 + 蓝红双方编制 → 点「开始」→ 手动部署（或一键部署）→ 开打</div>
+        <div class="hint-sub">每格 100m · 地图编辑器画的图直接用（六角格地图逐格烘焙；老 5m 图按格内面积占比算）</div>
+      </div>
+    </div>
+
+    <div id="wg-bar" class="hidden">
+      <span id="wg-turn" class="turn-info">蓝方 第 1 回合</span>
+      <span class="bar-tip">点自己的棋子 → 点白雾格移动 / 点敌方棋子开火</span>
+      <button id="wg-undo" title="撤回上一步（Ctrl+Z）" disabled>↶ 撤回</button>
+      <button id="wg-auto" class="hidden" title="把还没放的棋子按“后排靠后、步兵靠前”自动铺进部署区">🎲 一键部署</button>
+      <button id="wg-deploy-ok" class="hidden" title="本方部署完成（还有棋子没放会提示）">✔ 部署完成</button>
+      <button id="wg-view" title="底图显示（点击切换）">🎨 叠加</button>
+      <button id="wg-opp" class="active" title="自动临机射击（敌人移动经过你的视线+直射射程时自动打一发）">⚡ 临机</button>
+      <button id="wg-sfx" class="active" title="音效开关">🔊 音效</button>
+      <button id="wg-sheet-btn" title="完整距离火力表 + 三张 CRT（可拖动窗口）">📊 表格</button>
+      <button id="wg-end" title="结束本方回合（空格）">⏭ 结束回合</button>
+      <!-- ★ R10.38：手机端右侧面板改成上滑抽屉，这个按钮开关它 -->
+      <button id="wg-side-toggle" class="wg-mobile-only" title="作战面板（部署/选中/火力/日志）">📋 面板</button>
+      <span id="wg-status" class="status"></span>
+    </div>
+
+    <div class="cam-controls">
+      <button id="wg-zoom-in" title="放大">＋</button>
+      <button id="wg-zoom-out" title="缩小">−</button>
+      <button id="wg-fit" title="全图">⤢</button>
+    </div>
+  </div>
+
+  <aside id="wg-side">
+    <!-- ★ R10.23：部署清单（部署阶段才显示） -->
+    <section class="sec hidden" id="wg-deploy-sec">
+      <div class="sec-h">部署</div>
+      <div id="wg-deploy" class="sec-b"></div>
+    </section>
+    <!-- ★ R10.23：胜利目标（部署阶段可编辑，开打后只读 + 进度） -->
+    <section class="sec hidden" id="wg-goal-sec">
+      <div class="sec-h">胜利目标</div>
+      <div id="wg-goals" class="sec-b"></div>
+    </section>
+    <section class="sec">
+      <div class="sec-h">选中棋子</div>
+      <div id="wg-sel" class="sec-b">—</div>
+    </section>
+    <section class="sec">
+      <div class="sec-h">射程表（FLV）</div>
+      <div id="wg-flv" class="sec-b">—</div>
+    </section>
+    <section class="sec">
+      <div class="sec-h">开火判定</div>
+      <div id="wg-fire" class="sec-b">选中自己的棋子 → 点敌方棋子</div>
+    </section>
+    <section class="sec grow">
+      <div class="sec-h">战斗日志</div>
+      <div id="wg-log" class="sec-b log"></div>
+    </section>
+  </aside>
+</main>
+
+<!-- ===== 可拖动的表格窗：完整距离火力表 + 三张 CRT（按钮「📊 表格」开关） ===== -->
+<div id="wg-sheet" class="sheet hidden">
+  <div class="sheet-head" id="wg-sheet-drag">
+    <span class="sheet-title">📊 火力表 / CRT</span>
+    <span class="sheet-hint">按住这条标题栏可以拖动</span>
+    <button id="wg-sheet-close" title="关闭">✕</button>
+  </div>
+  <div class="sheet-body" id="wg-sheet-body"></div>
+</div>
+
+<!-- ===== 掷骰子（2D6）===== -->
+<div id="wg-dice" class="dice hidden">
+  <div class="dice-box">
+    <div class="dice-row">
+      <div class="die" id="wg-die1"></div>
+      <div class="die" id="wg-die2"></div>
+    </div>
+    <div class="dice-sum" id="wg-dice-sum">—</div>
+    <div class="dice-tip" id="wg-dice-tip"></div>
+  </div>
+</div>
+
+<!-- 编制 / 装备库 / 地图（顺序同 battle.html：官方地图池必须在 grid-maps.js 之前） -->
+<script src="js/dialog.js"></script>
+<!-- ★ R10.38：存储层（文件 = 正式存档；IndexedDB = 本机缓存） -->
+<script src="js/store.js"></script>
+<script src="js/ms-catalog.js"></script>
+<script src="js/data.js"></script>
+<!-- ★ R10.26：MIL-STD-2525 单位符号三件套 + 库 + 桥接层 -->
+<script src="js/vendor/milsymbol.js"></script>
+<script src="js/milsymbol-bridge.js"></script>
+<!-- ★ R10：兵牌库（北约符号）。hex-wargame 直接复用 buildSymbol()，
+     不再自己画方块 —— 玩家："场上的兵牌不要重新绘制，就用兵牌库里的那些"。
+     · model.js 提供 escapeXml()（buildSymbol 里凡带文字部件的兵种都要它）
+     · render.js 顶部只取几个 DOM 引用（本页没有那些 id ⇒ 拿到 null，安全） -->
+<script src="js/model.js"></script>
+<script src="js/render.js"></script>
+<script src="js/equipment.js"></script>
+<script src="js/maps-presets.js"></script>
+<script src="js/grid-maps.js"></script>
+<!-- 音效（WebAudio 现场合成，无音频文件） -->
+<script src="js/sfx.js"></script>
+<!-- 兵棋核心（纯函数：六角格 + FLV + 三张 CRT） -->
+<script src="js/hex-core.js"></script>
+<script src="js/hex-wargame.js"></script>
+
+</body>
+</html>

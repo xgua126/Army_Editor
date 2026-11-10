@@ -1,0 +1,32 @@
+/* 装备库列表项 hover */
+.eq-lib-item:hover {
+  border-color: var(--accent) !important;
+  background: var(--node-hover) !important;
+}
+.eq-lib-item button:hover {
+  background: rgba(37,99,235,.12) !important;
+}
+.eq-pick-item:hover {
+  border-color: var(--accent) !important;
+  background: var(--node-hover) !important;
+}
+#_eq_edit_modal input:focus,
+#_eq_lib_modal input:focus,
+#_eq_pick_modal input:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px rgba(37,99,235,.15);
+}
+@media (max-width: 900px) {
+  #_eq_lib_modal > div,
+  #_eq_edit_modal > div,
+  #_eq_pick_modal > div {
+    width: 94vw !important;
+    max-height: 92vh !important;
+  }
+  #_eq_edit_modal input,
+  #_eq_pick_modal input,
+  #_eq_lib_modal input,
+  #_eq_edit_modal select {
+    font-size: 16px !important;
+  }
+}
