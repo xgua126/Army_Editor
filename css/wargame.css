@@ -1,0 +1,442 @@
+/* ============================================================
+   回合制六角格兵棋 · 样式表（风格对齐 battle.css / map-editor.css）
+   ============================================================ */
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #0b1220;
+  color: #e2e8f0;
+}
+body { display: flex; flex-direction: column; }
+
+/* ---------- 顶栏 ---------- */
+header {
+  flex: none;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 18px;
+  background: linear-gradient(180deg, #0f172a, #0b1220);
+  border-bottom: 1px solid #1e293b;
+  z-index: 10;
+  flex-wrap: wrap;
+}
+header .back-btn {
+  font-size: 13px; color: #94a3b8; text-decoration: none;
+  padding: 6px 10px; border-radius: 6px; border: 1px solid #1e293b;
+  transition: .15s;
+}
+header .back-btn:hover { color: #7cb1f0; border-color: #3b82f6; background: rgba(59,130,246,.08); }
+header .logo { font-size: 15px; font-weight: 700; letter-spacing: .3px; color: #7cb1f0; }
+header .controls {
+  margin-left: auto; display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap;
+}
+header label {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; color: #94a3b8;
+}
+header select {
+  font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 6px;
+  border: 1px solid #334155; background: #0f172a; color: #e2e8f0;
+  outline: none; transition: .15s; max-width: 210px;
+}
+header select:focus { border-color: #3b82f6; }
+header button {
+  font: inherit; font-size: 13px; padding: 6px 14px; border-radius: 6px;
+  border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.08);
+  color: #e2e8f0; cursor: pointer; transition: .15s; white-space: nowrap;
+}
+header button:hover:not(:disabled) { background: rgba(255,255,255,.16); }
+header button.primary { background: #3b82f6; border-color: #3b82f6; color: #fff; font-weight: 600; }
+header button.primary:hover { background: #2f6fe0; }
+
+/* ---------- 主体：画布 + 侧栏 ---------- */
+main { flex: 1; display: flex; min-height: 0; }
+#wg-stage {
+  position: relative; flex: 1; min-width: 0;
+  background: #0b1220; overflow: hidden;
+}
+#wg-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+
+/* 未开局提示 */
+.hint {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(11,18,32,.72); backdrop-filter: blur(2px); z-index: 20;
+  text-align: center; padding: 20px;
+}
+.hint.hidden { display: none; }
+.hint-inner { max-width: 460px; }
+.hint-icon { font-size: 46px; margin-bottom: 8px; }
+.hint-title { font-size: 22px; font-weight: 800; color: #e2e8f0; margin-bottom: 10px; }
+.hint-text { font-size: 14px; color: #cbd5e1; line-height: 1.7; }
+.hint-sub { margin-top: 12px; font-size: 12px; color: #64748b; line-height: 1.7; }
+
+/* ---------- 底部命令条 ---------- */
+#wg-bar {
+  position: absolute; left: 50%; transform: translateX(-50%); bottom: 12px; z-index: 30;
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  background: rgba(15,23,42,.94); border: 1px solid #334155; border-radius: 10px;
+  padding: 6px 10px; box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  font: 12px/1.4 system-ui, sans-serif; color: #e2e8f0; max-width: calc(100% - 24px);
+}
+#wg-bar.hidden { display: none; }
+#wg-bar button {
+  background: rgba(255,255,255,.07); border: 1px solid #334155; border-radius: 6px;
+  color: #e2e8f0; padding: 4px 9px; cursor: pointer; font: inherit; white-space: nowrap;
+}
+#wg-bar button:hover { background: rgba(255,255,255,.14); }
+#wg-bar button:disabled { opacity: .4; cursor: default; }
+#wg-bar button:disabled:hover { background: rgba(255,255,255,.06); }
+#wg-bar button.active { background: rgba(96,165,250,.28); border-color: #60a5fa; color: #dbeafe; }
+#wg-bar .turn-info { color: #fcd34d; font-weight: 700; padding-right: 4px; white-space: nowrap; }
+/* ★ R10.12：把「移动 / 开火」两个模式按钮删了（现在纯点击：点棋子选中、点白雾格走、点敌人打）
+   ⇒ 这一行只留一句操作提示，别让工具栏看着空 */
+#wg-bar .bar-tip { color: #7f8ea3; font-size: 12px; white-space: nowrap; }
+#wg-bar .status { color: #94a3b8; padding-left: 4px; white-space: nowrap; }
+
+/* ---------- 相机按钮 ---------- */
+.cam-controls {
+  position: absolute; right: 12px; bottom: 12px; z-index: 25;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.cam-controls button {
+  width: 34px; height: 34px; border-radius: 8px; cursor: pointer;
+  background: rgba(15,23,42,.92); border: 1px solid #334155; color: #e2e8f0;
+  font-size: 15px; line-height: 1;
+}
+.cam-controls button:hover { background: rgba(59,130,246,.28); border-color: #3b82f6; }
+
+/* ---------- 右侧面板 ---------- */
+#wg-side {
+  flex: none; width: 322px; min-width: 322px;
+  display: flex; flex-direction: column; gap: 1px;
+  background: #1e293b; border-left: 1px solid #1e293b; overflow: hidden;
+}
+.sec { background: #0f172a; display: flex; flex-direction: column; min-height: 0; }
+.sec.grow { flex: 1; }
+.sec-h {
+  flex: none; padding: 6px 10px; font-size: 11px; font-weight: 700; letter-spacing: .6px;
+  color: #64748b; background: #0b1220; border-bottom: 1px solid #1e293b;
+  text-transform: uppercase;
+}
+.sec-b { padding: 8px 10px; font-size: 12px; line-height: 1.65; color: #cbd5e1; overflow: auto; }
+.sec.grow .sec-b { flex: 1; }
+
+/* 属性行 */
+.kv { display: flex; gap: 6px; }
+.kv b { color: #94a3b8; font-weight: 600; min-width: 58px; flex: none; }
+.kv span { color: #e2e8f0; word-break: break-all; }
+.tag {
+  display: inline-block; padding: 0 5px; border-radius: 4px; font-size: 11px;
+  background: rgba(96,165,250,.18); border: 1px solid rgba(96,165,250,.45); color: #93c5fd;
+}
+.tag.warn { background: rgba(245,158,11,.16); border-color: rgba(245,158,11,.5); color: #fcd34d; }
+.tag.bad { background: rgba(239,68,68,.16); border-color: rgba(239,68,68,.5); color: #fca5a5; }
+
+/* 射程表 */
+.flv-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.flv-table th, .flv-table td {
+  border: 1px solid #1e293b; padding: 2px 4px; text-align: center; color: #cbd5e1;
+}
+.flv-table th { background: #0b1220; color: #64748b; font-weight: 600; }
+.flv-table td.hot { background: rgba(239,68,68,.22); color: #fecaca; font-weight: 700; }
+.flv-table td.mid { background: rgba(245,158,11,.16); color: #fde68a; }
+.flv-table td.low { color: #64748b; }
+
+/* 开火预览 */
+.fire-box { display: flex; flex-direction: column; gap: 6px; }
+.fire-head { font-size: 13px; font-weight: 700; color: #fcd34d; }
+.fire-row { display: flex; justify-content: space-between; gap: 8px; }
+.fire-row span:last-child { color: #e2e8f0; font-weight: 600; }
+.fire-note { color: #94a3b8; font-size: 11px; line-height: 1.6; }
+.fire-actions { display: flex; gap: 6px; margin-top: 4px; }
+.fire-actions button {
+  flex: 1; font: inherit; font-size: 12px; padding: 6px 8px; border-radius: 6px;
+  border: 1px solid #334155; background: rgba(255,255,255,.07); color: #e2e8f0; cursor: pointer;
+}
+.fire-actions button.go { background: #dc2626; border-color: #dc2626; color: #fff; font-weight: 700; }
+.fire-actions button.go:hover { background: #b91c1c; }
+.fire-actions button:hover { background: rgba(255,255,255,.16); }
+
+/* 结果条 */
+.res { margin-top: 6px; padding: 6px 8px; border-radius: 6px; border: 1px solid #334155; background: #0b1220; }
+.res .code { font-size: 16px; font-weight: 900; letter-spacing: 1px; }
+.res .code.bad { color: #f87171; }
+.res .code.mid { color: #fbbf24; }
+.res .code.ok { color: #34d399; }
+
+/* 日志 */
+/* 装备清单表（棋子面板里"火炮等所有装备"） */
+.sec-sub {
+  margin: 8px 0 4px; font-size: 11px; font-weight: 700; color: #64748b; letter-spacing: .4px;
+}
+
+/* ★ R10.19：逐人明细（选中单位时列出每个人：头像 / 名字 / 武器；阵亡整行黑掉） */
+.roster { display: flex; flex-direction: column; gap: 2px; margin-bottom: 4px; }
+.roster .man {
+  display: flex; align-items: center; gap: 6px;
+  padding: 2px 6px; border-radius: 4px;
+  background: rgba(255,255,255,.04); border: 1px solid transparent;
+  font-size: 12px; color: #cbd5e1;
+}
+.roster .man:hover { background: rgba(96,165,250,.12); border-color: #334155; }
+.roster .man-face { width: 15px; text-align: center; font-size: 12px; flex: none; }
+.roster .man-name { font-weight: 600; color: #e2e8f0; flex: none; min-width: 62px; }
+.roster .man-wpn {
+  color: #94a3b8; font-size: 11.5px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.roster .man.dead { opacity: .42; filter: grayscale(1); background: rgba(0,0,0,.28); }
+.roster .man.dead .man-name { text-decoration: line-through; color: #64748b; }
+.roster .man.dead .man-wpn { text-decoration: line-through; color: #475569; }
+
+/* ★ R10.22：弹药条（只列火炮 / 反坦克 / 车载炮等"有限弹药"） */
+.ammo-list { display: flex; flex-direction: column; gap: 3px; margin-bottom: 4px; }
+.ammo-row {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11.5px; color: #cbd5e1;
+}
+.ammo-row .ammo-name { flex: none; min-width: 74px; color: #e2e8f0; }
+.ammo-row .ammo-bar {
+  flex: 1; height: 7px; border-radius: 4px; overflow: hidden;
+  background: rgba(255,255,255,.10); border: 1px solid #243449;
+}
+.ammo-row .ammo-bar i { display: block; height: 100%; background: #38bdf8; transition: width .2s; }
+.ammo-row .ammo-num { flex: none; min-width: 48px; text-align: right; color: #94a3b8; }
+.ammo-row.low .ammo-bar i { background: #fbbf24; }
+.ammo-row.low .ammo-num { color: #fcd34d; }
+.ammo-row.out .ammo-bar i { background: #ef4444; }
+.ammo-row.out .ammo-name { color: #f87171; }
+.ammo-row.out .ammo-num { color: #f87171; font-weight: 700; }
+table.equip-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+table.equip-table th, table.equip-table td {
+  border: 1px solid #1e293b; padding: 2px 4px; text-align: left; vertical-align: top;
+}
+table.equip-table th { background: #0b1220; color: #64748b; font-weight: 600; }
+table.equip-table td:nth-child(2) { color: #94a3b8; white-space: nowrap; }
+table.equip-table td:nth-child(3) { text-align: center; color: #fcd34d; }
+table.equip-table td:last-child { color: #94a3b8; }
+
+.log { font-size: 11.5px; line-height: 1.7; }
+.log div { padding: 1px 0; border-bottom: 1px dashed rgba(30,41,59,.9); }
+.log .t { color: #64748b; }
+.log .blue { color: #93c5fd; }
+.log .red { color: #fca5a5; }
+.log .hl { color: #fcd34d; font-weight: 700; }
+
+/* ---------- 手机端 ---------- */
+@media (max-width: 900px) {
+  main { flex-direction: column; position: relative; overflow: hidden; }
+  /* ★ R10.38：手机上面板改成**上滑抽屉**（默认收起，棋盘占满整屏） */
+  #wg-side {
+    position: absolute; left: 0; right: 0; bottom: 0; top: auto;
+    width: auto; min-width: 0; height: 58vh; max-height: 58vh;
+    border-left: none; border-top: 1px solid #1e293b;
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -14px 34px rgba(0,0,0,.55);
+    transform: translateY(102%);
+    transition: transform .22s ease;
+    z-index: 55;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  body.wg-side-open #wg-side { transform: translateY(0); }
+  #wg-side::before {
+    content: ''; position: sticky; top: 0; display: block; height: 12px;
+    background: linear-gradient(180deg, rgba(148,163,184,.35), transparent);
+    border-radius: 14px 14px 0 0; margin: -6px 0 2px;
+  }
+  #wg-stage { flex: 1 1 auto; min-height: 0; }
+  header { padding: 6px 10px; gap: 6px; flex-wrap: wrap; }
+  header select { max-width: 132px; }
+  /* ★ R10.39：顶栏多了「地图文件 / 编制文件」两个按钮，手机上压缩一下 */
+  header .import-btn { padding: 4px 7px; font-size: 11px; }
+  #wg-bar {
+    left: 6px; right: 6px; bottom: 6px; transform: none; max-width: none;
+    flex-wrap: nowrap; overflow-x: auto;
+    padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+  }
+  #wg-bar button { min-height: 40px; flex: 0 0 auto; }
+  #wg-bar .status { display: none; }
+  .cam-controls { bottom: auto; top: 12px; }
+  /* 抽屉开关只在手机上出现 */
+  .wg-mobile-only { display: inline-flex !important; align-items: center; justify-content: center; }
+}
+.wg-mobile-only { display: none; }
+
+/* ============================================================
+   ★ R10.5：可拖动的表格窗（完整距离火力表 + 三张 CRT）
+   ============================================================ */
+.sheet {
+  position: fixed; left: 50%; top: 84px; transform: translateX(-50%);
+  z-index: 60; width: min(900px, calc(100vw - 32px)); max-height: calc(100vh - 130px);
+  display: flex; flex-direction: column;
+  background: rgba(9,15,27,.975); border: 1px solid #334155; border-radius: 10px;
+  box-shadow: 0 18px 48px rgba(0,0,0,.6); overflow: hidden;
+  font: 12px/1.5 system-ui, sans-serif; color: #e2e8f0;
+}
+.sheet.hidden { display: none; }
+.sheet-head {
+  flex: none; display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; cursor: move; user-select: none; touch-action: none;
+  background: linear-gradient(180deg, #1e293b, #16202f); border-bottom: 1px solid #334155;
+}
+.sheet-title { font-weight: 700; color: #fcd34d; white-space: nowrap; }
+.sheet-hint { color: #64748b; font-size: 11px; white-space: nowrap; }
+.sheet-head button {
+  margin-left: auto; background: rgba(255,255,255,.08); border: 1px solid #334155;
+  color: #e2e8f0; border-radius: 6px; padding: 2px 9px; cursor: pointer; font: inherit;
+}
+.sheet-head button:hover { background: rgba(239,68,68,.25); border-color: #ef4444; }
+.sheet-body { padding: 10px 12px 14px; overflow: auto; }
+.sheet-body h4 { margin: 2px 0 6px; font-size: 12px; color: #93c5fd; letter-spacing: .3px; }
+.sheet-body .legend { color: #64748b; font-size: 11px; margin: 0 0 8px; line-height: 1.7; }
+.sheet-body .sep { height: 1px; background: #1e293b; margin: 14px 0 12px; }
+
+table.flv-full, table.crt { border-collapse: collapse; font-size: 11px; margin-bottom: 12px; }
+table.flv-full th, table.flv-full td,
+table.crt th, table.crt td {
+  border: 1px solid #1e293b; padding: 2px 6px; text-align: center; white-space: nowrap;
+}
+table.flv-full th, table.crt th { background: #0b1220; color: #64748b; font-weight: 600; }
+table.flv-full td { color: #cbd5e1; }
+table.flv-full tr.off td { color: #475569; }
+table.flv-full td.v5 { color: #fde68a; }
+table.flv-full td.v9 { color: #fca5a5; font-weight: 700; }
+table.flv-full td.none { color: #475569; }
+table.crt td.c0 { color: #475569; }
+table.crt td.c1 { background: rgba(245,158,11,.16); color: #fde68a; }
+table.crt td.c2 { background: rgba(239,68,68,.18); color: #fca5a5; }
+table.crt td.c3 { background: rgba(239,68,68,.4); color: #fee2e2; font-weight: 700; }
+table.crt th.roll7 { color: #fcd34d; }
+
+/* ============================================================
+   ★ R10.5：掷骰子（2D6）过程
+   ============================================================ */
+.dice {
+  position: fixed; inset: 0; z-index: 70;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(2,6,16,.5);
+}
+.dice.hidden { display: none; }
+.dice-box {
+  background: rgba(15,23,42,.98); border: 1px solid #334155; border-radius: 14px;
+  padding: 18px 22px 16px; box-shadow: 0 18px 48px rgba(0,0,0,.65); text-align: center;
+}
+.dice-row { display: flex; gap: 14px; justify-content: center; }
+.die {
+  width: 54px; height: 54px; border-radius: 10px; background: #f8fafc;
+  display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+  gap: 2px; padding: 6px;
+  box-shadow: inset 0 -3px 0 rgba(0,0,0,.16), 0 4px 12px rgba(0,0,0,.45);
+}
+.die b {
+  width: 100%; height: 100%; border-radius: 50%;
+  background: #0f172a; visibility: hidden;
+}
+.die b.on { visibility: visible; }
+.dice-sum {
+  margin-top: 10px; font-size: 16px; font-weight: 800; color: #fcd34d; letter-spacing: 1px;
+}
+.dice-tip { margin-top: 3px; font-size: 11px; color: #94a3b8; min-height: 16px; }
+
+/* 手机端：表格窗铺满、骰子小一点 */
+@media (max-width: 900px) {
+  .sheet {
+    left: 6px !important; top: 56px !important; transform: none !important;
+    width: calc(100vw - 12px) !important; max-height: 72vh;
+  }
+  .sheet-hint { display: none; }
+  .die { width: 46px; height: 46px; }
+  .dice-sum { font-size: 14px; }
+}
+
+/* ============================================================
+   ★ R10.23：部署清单 / 胜利目标 / 底图显示按钮
+   ============================================================ */
+.hidden { display: none !important; }
+
+/* 部署清单：一排一排的"棋子芯片"，点一下选中（.on），再点棋盘落子 */
+#wg-deploy .dep-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  font-size: 12px; font-weight: 700; margin-bottom: 6px;
+}
+#wg-deploy .dep-head span { font-weight: 400; color: #94a3b8; font-size: 11px; }
+#wg-deploy .dep-head.blue { color: #93c5fd; }
+#wg-deploy .dep-head.red  { color: #fca5a5; }
+.dep-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.dep-chip {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  font: inherit; font-size: 11.5px; line-height: 1.3; cursor: pointer;
+  padding: 3px 8px; border-radius: 6px; text-align: left;
+  background: rgba(255,255,255,.06); border: 1px solid #334155; color: #e2e8f0;
+}
+.dep-chip:hover { background: rgba(96,165,250,.2); border-color: #3b82f6; }
+.dep-chip.on { background: rgba(96,165,250,.4); border-color: #93c5fd; box-shadow: 0 0 0 1px #93c5fd inset; }
+.dep-chip .dp-name { font-weight: 700; }
+.dep-chip .dp-sub { font-size: 10.5px; color: #94a3b8; }
+.dep-chip.on .dp-sub { color: #dbeafe; }
+.dep-empty { color: #34d399; font-size: 12px; }
+.dep-tip { margin-top: 6px; font-size: 11px; color: #64748b; line-height: 1.6; }
+
+/* 胜利目标：每方一行（类型 / 据点 / 回合数）+ 进度行 */
+.goal-row { display: flex; align-items: center; gap: 4px; margin-bottom: 2px; }
+.goal-row b { flex: none; width: 26px; font-size: 11px; }
+.goal-row.blue b { color: #93c5fd; }
+.goal-row.red b { color: #fca5a5; }
+.goal-row select, .goal-row input {
+  font: inherit; font-size: 11.5px; padding: 3px 5px; border-radius: 5px; min-width: 0;
+  background: #0b1220; color: #e2e8f0; border: 1px solid #334155; outline: none;
+}
+.goal-row select { flex: 1; }
+.goal-row input { width: 52px; flex: none; }
+.goal-row select:disabled, .goal-row input:disabled { opacity: .55; }
+.goal-prog { font-size: 11px; color: #94a3b8; margin: 0 0 6px 30px; line-height: 1.5; }
+
+/* ============================================================
+   ★ R10.39：部署清单改成文件夹树 + 顶栏「导入文件」按钮
+   ============================================================ */
+.import-btn {
+  font: inherit; font-size: 12px; font-weight: 700; white-space: nowrap;
+  padding: 5px 9px; border-radius: 7px; cursor: pointer;
+  background: rgba(96,165,250,.16); border: 1px solid rgba(96,165,250,.55); color: #dbeafe;
+}
+.import-btn:hover { background: rgba(96,165,250,.32); }
+.dep-tree { display: flex; flex-direction: column; gap: 2px; }
+.dep-folder { border: 1px solid #1e293b; border-radius: 7px; background: rgba(255,255,255,.03); }
+.dep-folder > summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px; font-size: 12px; color: #cbd5e1; min-height: 34px;
+}
+.dep-folder > summary::-webkit-details-marker { display: none; }
+.dep-folder > summary::before { content: '▸'; color: #60a5fa; font-size: 11px; }
+.dep-folder[open] > summary::before { content: '▾'; }
+.dep-folder > summary .df-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dep-folder > summary .df-cnt { color: #94a3b8; font-size: 11px; font-variant-numeric: tabular-nums; }
+.dep-folder .df-body { padding: 0 6px 6px 14px; display: flex; flex-direction: column; gap: 3px; }
+.dep-chip.placed { opacity: .55; cursor: default; border-style: dashed; }
+
+/* 底图显示按钮：三态（叠加 / 地图 / 纯色），点一下换一个 */
+#wg-view { min-width: 74px; }
+
+/* ============================================================
+   ★ R10.36：选中面板里的「🏗 修建碉堡」
+   ============================================================ */
+.build-box { margin: 6px 0 8px; }
+.build-box button {
+  width: 100%; font: inherit; font-size: 12.5px; font-weight: 700;
+  padding: 7px 8px; border-radius: 7px; cursor: pointer;
+  background: rgba(56,189,248,.16); border: 1px solid rgba(56,189,248,.55); color: #bae6fd;
+}
+.build-box button:hover:not(:disabled) { background: rgba(56,189,248,.3); }
+.build-box button:disabled { cursor: not-allowed; opacity: .55; background: rgba(148,163,184,.12);
+  border-color: #334155; color: #94a3b8; }
+.build-hint { margin-top: 4px; font-size: 11px; line-height: 1.5; color: #94a3b8; }
+
+
+
+
